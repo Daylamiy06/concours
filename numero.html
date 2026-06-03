@@ -8,11 +8,11 @@
 <script type="module">
   window.fetchNumeros = function(callback) {
     try {
-      onValue(ref(db, 'numeros'), snapshot => {
+      onValue(ref(db, window.orgDataPath('numeros')), snapshot => {
         const data = snapshot.val() || {};
         callback(Object.values(data), {
-          ajouterNumero: numero => set(ref(db, 'numeros/numero' + numero.id), numero),
-          supprimerNumero: id => remove(ref(db, 'numeros/numero' + id))
+          ajouterNumero: numero => set(ref(db, window.orgDataPath('numeros/numero' + numero.id)), numero),
+          supprimerNumero: id => remove(ref(db, window.orgDataPath('numeros/numero' + id)))
         });
       }, error => {
         alert('خطأ في تحميل البيانات: ' + error.message);
@@ -34,9 +34,9 @@
   <div class="bg-white p-6 shadow-md rounded-lg max-w-[1000px] mx-auto"
   x-data="{
     numeros: [],
-	ajzaFilter: '',
-	actions: null,
-	loading: true,
+ ajzaFilter: '',
+ actions: null,
+ loading: true,
     showModal: false,
     snackbarMessage: '',
     snackbarVisible: false,
@@ -75,23 +75,23 @@
     <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
   </div>
 
-	<h1 class="text-2xl font-bold mb-4 text-center">إدارة أرقام الأسئلة</h1>
-	<div class="mb-4 flex items-center gap-4">
-		<button @click="numeroSelectionne = ''; showModal = true" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">رقم جديد</button>
-		<div class="flex items-center gap-2">
-			<label class="block text-lg font-bold whitespace-nowrap">تصفية حسب الجزء :</label>
-			<select x-model="ajzaFilter" class="border-2 border-gray-500 p-2 rounded">
-    			<option value="">الكل</option>
-    			<template x-for="j in [...new Set(numeros.map(n => n.ajza))].sort((a, b) => a - b)" :key="j">
-    				<option :value="j" x-text="j"></option>
-    			</template>
-			</select>
-		</div>
-	</div>
+ <h1 class="text-2xl font-bold mb-4 text-center">إدارة أرقام الأسئلة</h1>
+ <div class="mb-4 flex items-center gap-4">
+  <button @click="numeroSelectionne = ''; showModal = true" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">رقم جديد</button>
+  <div class="flex items-center gap-2">
+   <label class="block text-lg font-bold whitespace-nowrap">تصفية حسب الجزء :</label>
+   <select x-model="ajzaFilter" class="border-2 border-gray-500 p-2 rounded">
+       <option value="">الكل</option>
+       <template x-for="j in [...new Set(numeros.map(n => n.ajza))].sort((a, b) => a - b)" :key="j">
+        <option :value="j" x-text="j"></option>
+       </template>
+   </select>
+  </div>
+ </div>
 
-	<!-- Cards -->
-	<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-		<template x-for="numero in numeros" :key="numero.id">
+ <!-- Cards -->
+ <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+  <template x-for="numero in numeros" :key="numero.id">
           <div x-show="!ajzaFilter || numero.ajza == ajzaFilter" class="bg-blue-100 border-2 border-gray-500 rounded shadow-md p-4 transform transition cursor-pointer relative">
             <div class="absolute top-1 right-3" x-data="{ openMenu: false }">
               <button @click.stop="openMenu = !openMenu" class="text-gray-500 hover:text-gray-800 text-2xl font-bold">⋮</button>
@@ -104,8 +104,8 @@
             <h2 class="text-center text-black" x-show="!ajzaFilter" x-text="'جزء : ' + numero.ajza"></h2>
           </div>
         </template>
-		<div x-show="!numeros.length" class="text-gray-500 col-span-full text-center py-8">لا توجد أرقام مسجلة حالياً.</div>
-	</div>
+  <div x-show="!numeros.length" class="text-gray-500 col-span-full text-center py-8">لا توجد أرقام مسجلة حالياً.</div>
+ </div>
 
 <!-- Modale -->
 <div x-show="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50" @click="showModal = false" x-cloak>
@@ -223,7 +223,7 @@
       try {
         const {db} = await window.initFirebase();
         const {ref, get, set, update, child} = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
-        const numerosRef = ref(db, 'numeros');
+        const numerosRef = ref(db, window.orgDataPath('numeros'));
         const snapshot = await get(numerosRef);
         const allNumeros = snapshot.val() || {};
         const existantKeys = new Set();
@@ -270,42 +270,42 @@
         }
 
         function plages() {
-  		const p = [];
-  		for (let i = 1; i <= 90; i += 10) {
-    		p.push([i, i + 9]);
-  		}
-  		for (let i = 100; i <= 900; i += 100) {
-    		p.push([i, i + 99]);
-  		}
-  		return p;
-		}
+    const p = [];
+    for (let i = 1; i <= 90; i += 10) {
+      p.push([i, i + 9]);
+    }
+    for (let i = 100; i <= 900; i += 100) {
+      p.push([i, i + 99]);
+    }
+    return p;
+  }
 
-		const utilises = new Set(
-  		Object.values(allNumeros)
-    		.filter(n => n.ajza === dataToSave.ajza)
-    		.map(n => n.numero)
-		);
+  const utilises = new Set(
+    Object.values(allNumeros)
+      .filter(n => n.ajza === dataToSave.ajza)
+      .map(n => n.numero)
+  );
 
-		let numero = null;
+  let numero = null;
 
-		for (const [min, max] of plages()) {
-  		const libres = [];
-  		for (let n = min; n <= max; n++) {
-    		if (!utilises.has(n)) libres.push(n);
-  		}
+  for (const [min, max] of plages()) {
+    const libres = [];
+    for (let n = min; n <= max; n++) {
+      if (!utilises.has(n)) libres.push(n);
+    }
 
-  		if (libres.length) {
-    		numero = libres[Math.floor(Math.random() * libres.length)];
-    		break;
-  		}
-		}
+    if (libres.length) {
+      numero = libres[Math.floor(Math.random() * libres.length)];
+      break;
+    }
+  }
 
-		if (numero === null) {
-  		this.errorMessage = 'Tous les numéros sont déjà utilisés pour ce juz’.';
-  		return;
-		}
+  if (numero === null) {
+    this.errorMessage = 'Tous les numéros sont déjà utilisés pour ce juz’.';
+    return;
+  }
 
-		dataToSave.numero = numero;
+  dataToSave.numero = numero;
 
         if (this.numeroSelectionne) {
           await update(child(numerosRef, this.numeroSelectionne.id), dataToSave);
@@ -357,7 +357,7 @@
     }
   }">
   <div class="shadow-md w-full z-50 pl-4 pr-6">
-	<h2 class="text-2xl font-semibold text-center mb-4">إضافة رقم جديد</h2>
+ <h2 class="text-2xl font-semibold text-center mb-4">إضافة رقم جديد</h2>
     <template x-if="errorMessage">
       <div class="mb-4 text-red-600 bg-red-100 border border-red-300 rounded px-4 py-2 text-sm text-right shadow-md">
         <span x-text="errorMessage"></span>
