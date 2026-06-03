@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/11.5.0/firebase-app-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/11.5.0/firebase-auth-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/11.5.0/firebase-database-compat.js"></script>
+    <title>إدارة المنصة</title>
+    <style>
+        [x-cloak] { display: none !important; }
+        input:focus, select:focus, textarea:focus {
+            border-color: #3b82f6 !important;
+            outline: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="platformAdmin()" x-init="init()">
+    <div x-show="loading" class="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50" x-cloak>
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+    </div>
+
+    <header class="bg-white shadow-md fixed top-0 left-0 w-full z-40">
+        <div class="p-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold">إدارة المنصة</h1>
+                <p class="text-sm text-gray-600 mt-1">إنشاء المنظمات وحساباتها في قاعدة البيانات الجديدة</p>
+            </div>
+            <button @click="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">تسجيل الخروج</button>
+        </div>
+    </header>
+
+    <main class="pt-32 p-6 max-w-6xl mx-auto">
+        <div x-show="toast.show" x-text="toast.message" :class="toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'"
+             class="fixed top-24 left-1/2 -translate-x-1/2 text-white px-4 py-2 rounded shadow-lg z-50" x-cloak></div>
+
+        <section class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-lg font-bold mb-4">إنشاء منظمة جديدة</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block font-semibold mb-1">اسم المنظمة</label>
+                    <input x-model="orgForm.name" type="text" class="w-full border-2 border-gray-300 rounded p-2" placeholder="مثال: مسابقة الريان">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">المدينة / البلد</label>
+                    <input x-model="orgForm.location" type="text" class="w-full border-2 border-gray-300 rounded p-2" placeholder="اختياري">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">عدد المحكمين المتوقع</label>
+                    <input x-model.number="orgForm.expectedJuryCount" type="number" min="1" class="w-full border-2 border-gray-300 rounded p-2" placeholder="اختياري">
+                </div>
+            </div>
+            <button @click="createOrganisation()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">إنشاء المنظمة</button>
+        </section>
+
+        <section class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-lg font-bold mb-4">إنشاء حساب داخل منظمة</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="block font-semibold mb-1">المنظمة</label>
+                    <select x-model="userForm.orgId" class="w-full border-2 border-gray-300 rounded p-2">
+                        <option value="">اختر منظمة</option>
+                        <template x-for="org in organisations" :key="org.id">
+                            <option :value="org.id" x-text="org.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">الدور</label>
+                    <select x-model="userForm.role" class="w-full border-2 border-gray-300 rounded p-2">
+                        <option value="المسؤول">المسؤول</option>
+                        <option value="المحكم">المحكم</option>
+                        <option value="المرشح">المرشح</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">البريد الإلكتروني</label>
+                    <input x-model="userForm.email" type="email" class="w-full border-2 border-gray-300 rounded p-2" placeholder="user@example.com">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">كلمة المرور</label>
+                    <input x-model="userForm.password" type="password" class="w-full border-2 border-gray-300 rounded p-2" placeholder="6 أحرف على الأقل">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block font-semibold mb-1">الاسم</label>
+                    <input x-model="userForm.nom" type="text" class="w-full border-2 border-gray-300 rounded p-2" placeholder="اختياري">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">ملاحظة</label>
+                    <input x-model="userForm.note" type="text" class="w-full border-2 border-gray-300 rounded p-2" placeholder="اختياري">
+                </div>
+            </div>
+            <button @click="createOrgUser()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">إنشاء الحساب</button>
+        </section>
+
+        <section class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold mb-4">المنظمات المسجلة</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse border border-gray-300 text-center">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="border p-2">المعرف</th>
+                            <th class="border p-2">الاسم</th>
+                            <th class="border p-2">الموقع</th>
+                            <th class="border p-2">الحالة</th>
+                            <th class="border p-2">تاريخ الإنشاء</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr x-show="organisations.length === 0">
+                            <td colspan="5" class="p-4 text-gray-500">لا توجد منظمات حالياً.</td>
+                        </tr>
+                        <template x-for="org in organisations" :key="org.id">
+                            <tr>
+                                <td class="border p-2 text-xs" x-text="org.id"></td>
+                                <td class="border p-2" x-text="org.name"></td>
+                                <td class="border p-2" x-text="org.location || '-'"></td>
+                                <td class="border p-2" x-text="org.active ? 'نشطة' : 'متوقفة'"></td>
+                                <td class="border p-2" x-text="formatDate(org.createdAt)"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBA7alPaDE3YTxABZLTkf6sd2dqjyAMF3g",
+    authDomain: "musabaqat-92dbf.firebaseapp.com",
+    databaseURL: "https://musabaqat-92dbf-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "musabaqat-92dbf",
+    storageBucket: "musabaqat-92dbf.firebasestorage.app",
+    messagingSenderId: "871664709981",
+    appId: "1:871664709981:web:f3bae49d910885faad78b4",
+    measurementId: "G-HP0098P694"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+function platformAdmin() {
+
+    return {
+        loading: true,
+        currentUid: localStorage.getItem('loggedInUser') || '',
+        organisations: [],
+
+        orgForm: {
+            name: '',
+            location: '',
+            expectedJuryCount: ''
+        },
+
+        userForm: {
+            orgId: '',
+            role: 'المسؤول',
+            email: '',
+            password: '',
+            nom: '',
+            note: ''
+        },
+
+        toast: {
+            show: false,
+            message: '',
+            type: 'success'
+        },
+
+        init() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                this.currentUid = user.uid;
+                const userSnap = await db.ref('utilisateurs/' + user.uid).once('value');
+                const userData = userSnap.val() || {};
+                if (userData.role !== 'super_admin' && userData.platformRole !== 'super_admin') {
+                    this.showToast('ليس لديك صلاحية لإدارة المنصة', 'error');
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 1200);
+                    return;
+                }
+
+                localStorage.setItem('loggedInUser', user.uid);
+                localStorage.setItem('userRole', userData.role || 'super_admin');
+                localStorage.setItem('platformRole', userData.platformRole || 'super_admin');
+                await db.ref('utilisateurs/' + user.uid).update({lastSeen: Date.now()});
+                this.listenOrganisations();
+                this.loading = false;
+            });
+        },
+
+        listenOrganisations() {
+            db.ref('organisations').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                this.organisations = Object.entries(data).map(([id, org]) => ({id, ...org})).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            });
+        },
+        
+        async logout() {
+    		await auth.signOut();
+    		localStorage.removeItem('loggedInUser');
+    		localStorage.removeItem('userRole');
+    		localStorage.removeItem('platformRole');
+    		window.location.href = 'login.html';
+		},
+
+        async createOrganisation() {
+            if (!this.orgForm.name.trim()) {
+                this.showToast('يرجى إدخال اسم المنظمة', 'error');
+                return;
+            }
+
+            this.loading = true;
+            const orgRef = db.ref('organisations').push();
+            const orgId = orgRef.key;
+            const now = Date.now();
+            const orgData = {
+                id: orgId,
+                name: this.orgForm.name.trim(),
+                location: this.orgForm.location.trim(),
+                expectedJuryCount: this.orgForm.expectedJuryCount || null,
+                active: true,
+                createdAt: now,
+                createdBy: this.currentUid
+            };
+
+            await orgRef.set(orgData);
+            await db.ref(`orgData/${orgId}/metadata`).set(orgData);
+            this.orgForm = {name: '', location: '', expectedJuryCount: ''};
+            this.loading = false;
+            this.showToast('تم إنشاء المنظمة بنجاح');
+        },
+        
+        async createOrgUser() {
+    		if (!this.userForm.orgId) {
+        		this.showToast('يرجى اختيار منظمة', 'error');
+        		return;
+    		}
+
+    		if (!this.userForm.email.trim() || !this.userForm.password.trim()) {
+        		this.showToast('يرجى إدخال البريد الإلكتروني وكلمة المرور', 'error');
+        		return;
+    		}
+
+    		if (this.userForm.password.length < 6) {
+        		this.showToast('كلمة المرور يجب أن تتكون من 6 أحرف على الأقل', 'error');
+        		return;
+    		}
+
+    		try {
+        		this.loading = true;
+        		const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
+        		const secondaryAuth = secondaryApp.auth();
+        		const credential = await secondaryAuth.createUserWithEmailAndPassword(
+            		this.userForm.email.trim(),
+            		this.userForm.password
+        		);
+
+        		const uid = credential.user.uid;
+        		const org = this.organisations.find(item => item.id === this.userForm.orgId) || {};
+        		await db.ref('utilisateurs/' + uid).set({
+            		uid,
+            		id: uid,
+            		email: this.userForm.email.trim(),
+            		nom: this.userForm.nom.trim(),
+            		note: this.userForm.note.trim(),
+            		role: this.userForm.role,
+            		orgId: this.userForm.orgId,
+            		orgName: org.name || '',
+            		active: true,
+            		lastSeen: 0,
+            		createdAt: Date.now(),
+            		createdBy: this.currentUid
+        		});
+
+        		await secondaryAuth.signOut();
+        		await secondaryApp.delete();
+
+        		this.userForm = {
+            		orgId: this.userForm.orgId,
+            		role: 'المسؤول',
+            		email: '',
+            		password: '',
+            		nom: '',
+            		note: ''
+        		};
+
+        		this.showToast('تم إنشاء الحساب وربطه بالمنظمة بنجاح');
+
+    		} catch (error) {
+        		this.showToast(error.message, 'error');
+    		} finally {
+        		this.loading = false;
+    		}
+		},
+
+        showToast(message, type = 'success') {
+            this.toast = {show: true, message, type};
+            setTimeout(() => {
+                this.toast.show = false;
+            }, 4000);
+        },
+
+        formatDate(value) {
+            if (!value) return '-';
+            return new Date(value).toLocaleString('ar');
+        }
+    };
+}
+</script>
+</body>
+</html>
