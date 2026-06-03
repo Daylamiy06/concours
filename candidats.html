@@ -99,13 +99,14 @@
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-auth.js";
 
   const firebaseConfig = {
-    apiKey: "AIzaSyDP9EM5fld8tUradGbGVo-9LaAe4q0l6vQ",
-    authDomain: "correctionconcours.firebaseapp.com",
-    databaseURL: "https://correctionconcours-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "correctionconcours",
-    storageBucket: "correctionconcours.appspot.com",
-    messagingSenderId: "117965376477",
-    appId: "1:117965376477:web:a59362c9757f5f4bba0434"
+    apiKey: "AIzaSyBA7alPaDE3YTxABZLTkf6sd2dqjyAMF3g",
+    authDomain: "musabaqat-92dbf.firebaseapp.com",
+    databaseURL: "https://musabaqat-92dbf-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "musabaqat-92dbf",
+    storageBucket: "musabaqat-92dbf.firebasestorage.app",
+    messagingSenderId: "871664709981",
+    appId: "1:871664709981:web:f3bae49d910885faad78b4",
+    measurementId: "G-HP0098P694"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -118,6 +119,8 @@
 
   const loggedInUser = localStorage.getItem('loggedInUser');
   const userRole = localStorage.getItem('userRole');
+  const userOrgId = localStorage.getItem('userOrgId');
+  const orgDataPath = (path) => userOrgId ? `orgData/${userOrgId}/${path}` : `orgData/__missing_org__/${path}`;
   const userRef = ref(db, 'utilisateurs/' + loggedInUser);
   async function startLastSeenUpdate() {
     const updateLastSeen = () => update(userRef, { lastSeen: Date.now() });
@@ -126,8 +129,8 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    if (!loggedInUser || userRole !== "المرشح") {
-      alert("ليس لديك صلاحية للوصول إلى هذه الصفحة !");
+    if (!loggedInUser || userRole !== "المرشح" || !userOrgId) {
+      alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ربط حسابك بمنظمة !");
       window.location.href = 'login.html';
       return;
     }
@@ -139,7 +142,7 @@
 
   function loadNumeros() {
     store.loading = true;
-    onValue(ref(db, 'numeros'), (snapshot) => {
+    onValue(ref(db, orgDataPath('numeros')), (snapshot) => {
       const data = snapshot.val() || {};
       const list = Object.entries(data).map(([id, n]) => ({ id, ...n }));
       store.numeros = list;
@@ -154,7 +157,7 @@
   }
 
   function loadCandidats() {
-    onValue(ref(db, 'candidats'), (snapshot) => {
+    onValue(ref(db, orgDataPath('candidats')), (snapshot) => {
       const data = snapshot.val() || {};
       const list = Object.entries(data).map(([id, c]) => ({ id, ...c }));
       store.candidats = list;
@@ -162,7 +165,7 @@
   }
 
   function syncSessionSelectionnee() {
-    const sessionRef = ref(db, 'sessionPartagee');
+    const sessionRef = ref(db, orgDataPath('sessionPartagee'));
 
     // Écoute des changements depuis Firebase
     onValue(sessionRef, (snapshot) => {
@@ -184,11 +187,11 @@
   function attribuerNumero(numeroId) {
     const candidatNom = store.candidatSelectionne;
     const candidat = store.candidats.find(c => c.nom === candidatNom);
-    const numeroRef = ref(db, 'numeros/' + numeroId);
+    const numeroRef = ref(db, orgDataPath('numeros/' + numeroId));
     update(numeroRef, { candidatId: candidat.id });
     store.candidatSelectionne = "";
     store.messageTemporaire = "تم ✅";
-    update(ref(db, 'sessionPartagee'), { ajza: store.selectedAjza, candidat: "" }); // reset partagé
+    update(ref(db, orgDataPath('sessionPartagee')), { ajza: store.selectedAjza, candidat: "" }); // reset partagé
     setTimeout(() => store.messageTemporaire = "", 4000);
   }
 
@@ -198,6 +201,7 @@
     await signOut(auth);
     localStorage.removeItem('loggedInUser');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('userOrgId');
     window.location.href = 'login.html';
   };
   </script>
