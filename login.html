@@ -66,13 +66,14 @@
         import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyDP9EM5fld8tUradGbGVo-9LaAe4q0l6vQ",
-            authDomain: "correctionconcours.firebaseapp.com",
-            databaseURL: "https://correctionconcours-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "correctionconcours",
-            storageBucket: "correctionconcours.appspot.com",
-            messagingSenderId: "117965376477",
-            appId: "1:117965376477:web:a59362c9757f5f4bba0434"
+            apiKey: "AIzaSyBA7alPaDE3YTxABZLTkf6sd2dqjyAMF3g",
+            authDomain: "musabaqat-92dbf.firebaseapp.com",
+            databaseURL: "https://musabaqat-92dbf-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "musabaqat-92dbf",
+            storageBucket: "musabaqat-92dbf.firebasestorage.app",
+            messagingSenderId: "871664709981",
+            appId: "1:871664709981:web:f3bae49d910885faad78b4",
+            measurementId: "G-HP0098P694"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -111,15 +112,22 @@
 
                         const user = snapshot.val();
                         const role = user.role || "غير معروف";
+                        const platformRole = user.platformRole || "";
+                        const orgId = user.orgId || "";
 
                         localStorage.setItem("loggedInUser", uid);
                         localStorage.setItem("userRole", role);
+                        localStorage.setItem("userOrgId", orgId);
+                        localStorage.setItem("platformRole", platformRole);
+
+                        if (role === "super_admin" || platformRole === "super_admin") {
+                            window.location.href = "superadmin.html";
+                            return;
+                        }
 
                         switch (role) {
                             case "المسؤول": window.location.href = "admin.html"; break;
-                            case "التجويد": window.location.href = "tajweed.html"; break;
-                            case "الحفظ": window.location.href = "hafz.html"; break;
-                            case "الأداء": window.location.href = "sawt.html"; break;
+                            case "المحكم": window.location.href = "correction.html"; break;
                             case "المرشح": window.location.href = "candidats.html"; break;
                             default: scope.errorMessage = "دور غير معروف!";
                         }
