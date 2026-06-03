@@ -138,9 +138,9 @@
                                 <th class="p-2 score-column">التقدير</th>
                                 <th class="p-2 country-column">الدولة</th>
                                 <th class="p-2 matricule-column">رقم الجامعي</th>
-                                <th class="p-2 hide">تقيم الحفظ</th>
-                                <th class="p-2 hide">تقييم التجويد</th>
-                                <th class="p-2 hide">تقييم الأداء والصوت</th>
+                                <th class="p-2 hide">عدد المحكمين</th>
+                                <th class="p-2 hide">مجموع الدرجات</th>
+                                <th class="p-2 hide">طريقة الحساب</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -157,9 +157,9 @@
                                     <td class="p-2" x-text="`${candidat.notetotale}/100`"></td>
                                     <td class="p-2" x-text="candidat.pays"></td>
                                     <td class="p-2" x-text="candidat.matricule"></td>
-                                    <td class="p-2 hide" x-text="`${candidat.notehafz}/45`"></td>
-                                    <td class="p-2 hide" x-text="`${candidat.notetajweed}/30`"></td>
-                                    <td class="p-2 hide" x-text="`${candidat.notesawt}/25`"></td>
+                                    <td class="p-2 hide" x-text="candidat.juryCount || 0"></td>
+                                    <td class="p-2 hide" x-text="`${candidat.sumScore || 0}`"></td>
+                                    <td class="p-2 hide" x-text="candidat.calculationMethod === 'jury_average' ? 'متوسط المحكمين' : '-'"></td>
                                 </tr>
                             </template>
                         </tbody>
@@ -176,7 +176,8 @@
     <script type="module">
         window.fetchnotes = function(callback) {
             try {
-                onValue(ref(db, 'notes'), (snapshot) => {
+                const notesPath = window.orgDataPath ? window.orgDataPath('notes') : 'notes';
+                onValue(ref(db, notesPath), (snapshot) => {
                     const data = snapshot.val() || {};
                     const result = Object.values(data);
                     callback(result);
@@ -190,4 +191,3 @@
     </script>
 </body>
 </html>
-
