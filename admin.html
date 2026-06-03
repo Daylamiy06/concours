@@ -21,9 +21,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             const loggedInUser = localStorage.getItem('loggedInUser');
             const userRole = localStorage.getItem('userRole');
+            const userOrgId = localStorage.getItem('userOrgId');
 
-            if (!loggedInUser || userRole !== "المسؤول") {
-                alert("ليس لديك صلاحية للوصول إلى هذه الصفحة !");
+            if (!loggedInUser || userRole !== "المسؤول" || !userOrgId) {
+                alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ربط حسابك بمنظمة !");
                 window.location.href = 'login.html';
                 return;
             }
@@ -35,13 +36,14 @@
             if (window.firebaseInitialized) return window.firebaseInstance;
 
             const firebaseConfig = {
-                apiKey: "AIzaSyDP9EM5fld8tUradGbGVo-9LaAe4q0l6vQ",
-                authDomain: "correctionconcours.firebaseapp.com",
-                databaseURL: "https://correctionconcours-default-rtdb.europe-west1.firebasedatabase.app",
-                projectId: "correctionconcours",
-                storageBucket: "correctionconcours.appspot.com",
-                messagingSenderId: "117965376477",
-                appId: "1:117965376477:web:a59362c9757f5f4bba0434"
+                apiKey: "AIzaSyBA7alPaDE3YTxABZLTkf6sd2dqjyAMF3g",
+                authDomain: "musabaqat-92dbf.firebaseapp.com",
+                databaseURL: "https://musabaqat-92dbf-default-rtdb.europe-west1.firebasedatabase.app",
+                projectId: "musabaqat-92dbf",
+                storageBucket: "musabaqat-92dbf.firebasestorage.app",
+                messagingSenderId: "871664709981",
+                appId: "1:871664709981:web:f3bae49d910885faad78b4",
+                measurementId: "G-HP0098P694"
             };
 
             const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js");
@@ -51,6 +53,8 @@
             const app = initializeApp(firebaseConfig);
             const db = getDatabase(app);
             const auth = getAuth(app);
+            const userOrgId = localStorage.getItem('userOrgId');
+            window.orgDataPath = (path) => userOrgId ? `orgData/${userOrgId}/${path}` : `orgData/__missing_org__/${path}`;
 
             onAuthStateChanged(auth, (user) => {
                 if (!user) {
@@ -67,7 +71,7 @@
             const { db } = await window.initFirebase();
             const { ref, set, remove, onValue } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
 
-            const candidatsRef = ref(db, 'candidats');
+            const candidatsRef = ref(db, window.orgDataPath('candidats'));
             onValue(candidatsRef, (snapshot) => {
                 const data = snapshot.val() || {};
                 const candidatsArray = Object.entries(data).map(([key, value]) => ({
@@ -78,8 +82,8 @@
             });
 
             return {
-                ajouterCandidat: (candidat) => set(ref(db, 'candidats/' + candidat.id), candidat),
-                supprimerCandidat: (id) => remove(ref(db, 'candidats/' + id))
+                ajouterCandidat: (candidat) => set(ref(db, window.orgDataPath('candidats/' + candidat.id)), candidat),
+                supprimerCandidat: (id) => remove(ref(db, window.orgDataPath('candidats/' + id)))
             };
         };
 
@@ -87,7 +91,7 @@
             const { db } = await window.initFirebase();
             const { ref, onValue } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
 
-            const notesRef = ref(db, 'notes');
+            const notesRef = ref(db, window.orgDataPath('notes'));
             onValue(notesRef, (snapshot) => {
                 const data = snapshot.val() || {};
                 const notesArray = Object.entries(data).map(([key, value]) => ({
@@ -102,7 +106,7 @@
             const { db } = await window.initFirebase();
             const { ref, set, remove, onValue } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
 
-            const numerosRef = ref(db, 'numeros');
+            const numerosRef = ref(db, window.orgDataPath('numeros'));
             onValue(numerosRef, (snapshot) => {
                 const data = snapshot.val() || {};
                 const numerosArray = Object.entries(data).map(([key, value]) => ({
@@ -113,8 +117,8 @@
             });
 
             return {
-                ajouterNumero: (numero) => set(ref(db, 'numeros/' + numero.id), numero),
-                supprimerNumero: (id) => remove(ref(db, 'numeros/' + id))
+                ajouterNumero: (numero) => set(ref(db, window.orgDataPath('numeros/' + numero.id)), numero),
+                supprimerNumero: (id) => remove(ref(db, window.orgDataPath('numeros/' + id)))
             };
         };
 
@@ -142,6 +146,7 @@
 
             localStorage.removeItem('loggedInUser');
             localStorage.removeItem('userRole');
+            localStorage.removeItem('userOrgId');
             window.location.href = 'login.html';
         }
     </script>
@@ -195,14 +200,15 @@
                     const { ref, remove, get } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
 
                     // Supprimer le noeud sélectionné 
-                    await remove(ref(db, noeud));
+                    await remove(ref(db, window.orgDataPath(noeud)));
                     
                     // Si on supprime tous les candidats, on supprime aussi toutes les notes
                     if (noeud === 'candidats') {
-                        await remove(ref(db, 'notes'));
+                        await remove(ref(db, window.orgDataPath('notes')));
+                        await remove(ref(db, window.orgDataPath('corrections')));
                         
                         // Supprimer des champs spécifiques dans 'numeros'
-    					const numerosRef = ref(db, 'numeros');
+    					const numerosRef = ref(db, window.orgDataPath('numeros'));
     					const snapshot = await get(numerosRef);
     					if (snapshot.exists()) {
         					const numerosData = snapshot.val();
@@ -210,7 +216,7 @@
         					for (const [key, value] of Object.entries(numerosData)) {
             					for (const champ of champsASupprimer) {
             						if (value.hasOwnProperty(champ)) {
-                						await remove(ref(db, `numeros/${key}/${champ}`));
+                						await remove(ref(db, window.orgDataPath(`numeros/${key}/${champ}`)));
             						}
         						}
         					}
