@@ -9,12 +9,12 @@
     <script type="module">
         window.fetchCandidats = function(callback) {
             try {
-                onValue(ref(db, 'candidats'), (snapshot) => {
+                onValue(ref(db, window.orgDataPath('candidats')), (snapshot) => {
                     const data = snapshot.val() || {};
                     const result = Object.values(data);
                     callback(result, {
-                        ajouterCandidat: (candidat) => set(ref(db, 'candidats/candidat' + candidat.id), candidat),
-                        supprimerCandidat: (id) => remove(ref(db, 'candidats/candidat' + id))
+                        ajouterCandidat: (candidat) => set(ref(db, window.orgDataPath('candidats/candidat' + candidat.id)), candidat),
+                        supprimerCandidat: (id) => remove(ref(db, window.orgDataPath('candidats/candidat' + id)))
                     });
                 }, (error) => {
                     alert("خطأ في تحميل البيانات: " + error.message);
@@ -114,8 +114,8 @@
             saveCandidat() {
                 if (!this.actions) return;
 
-				const nom = this.formData.nom.trim();
-				const matricule = this.formData.matricule.trim();
+    const nom = this.formData.nom.trim();
+    const matricule = this.formData.matricule.trim();
                 const pays = this.formData.pays.trim();
                 const telephone = this.formData.telephone.trim();
                 const ajza = Number(this.formData.ajza);
@@ -126,10 +126,10 @@
                 }
                 
                 const exists = this.candidats.some(c => c.matricule === matricule && c.id !== this.formData.id);
-				if (exists) {
-    				this.errorMessage = "رقم الجامعي موجود بالفعل";
-    				return;
-				}
+    if (exists) {
+        this.errorMessage = "رقم الجامعي موجود بالفعل";
+        return;
+    }
 
                 const candidat = {
                     id: this.formData.id || this.nextId++,
@@ -142,7 +142,7 @@
                         try {
                             const { db } = await window.initFirebase();
                             const { ref, get, set } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
-                            const noteRef = ref(db, "notes/" + candidat.id);
+                            const noteRef = ref(db, window.orgDataPath("notes/" + candidat.id));
                             const snapshot = await get(noteRef);
 
                             if (snapshot.exists()) {
@@ -207,33 +207,33 @@
                         })).filter(c => c.nom && c.pays && c.ajza > 0);
                         
                         // Doublons dans le fichier Excel
-						const seen = new Set();
-						const duplicateInFile = this.excelPreview.some(c => {
-    						if (seen.has(c.matricule)) return true;
-    						seen.add(c.matricule);
-    						return false;
-						});
+      const seen = new Set();
+      const duplicateInFile = this.excelPreview.some(c => {
+          if (seen.has(c.matricule)) return true;
+          seen.add(c.matricule);
+          return false;
+      });
 
-						if (duplicateInFile) {
-    						this.importErrorMessage = "الملف يحتوي على أرقام جامعية مكررة";
-    						this.excelPreview = [];
-    						return;
-						}
-						
-						// Doublons avec la base existante
-						const existingMatricules = new Set(
-    						this.candidats.map(c => String(c.matricule).trim())
-						);
+      if (duplicateInFile) {
+          this.importErrorMessage = "الملف يحتوي على أرقام جامعية مكررة";
+          this.excelPreview = [];
+          return;
+      }
+      
+      // Doublons avec la base existante
+      const existingMatricules = new Set(
+          this.candidats.map(c => String(c.matricule).trim())
+      );
 
-						const duplicateWithDB = this.excelPreview.some(c =>
-    						existingMatricules.has(c.matricule)
-						);
+      const duplicateWithDB = this.excelPreview.some(c =>
+          existingMatricules.has(c.matricule)
+      );
 
-						if (duplicateWithDB) {
-    						this.importErrorMessage = "بعض أرقام الجامعي موجودة مسبقاً في النظام";
-    						this.excelPreview = [];
-    						return;
-						}
+      if (duplicateWithDB) {
+          this.importErrorMessage = "بعض أرقام الجامعي موجودة مسبقاً في النظام";
+          this.excelPreview = [];
+          return;
+      }
 
                         if (this.excelPreview.length === 0) {
                             this.importErrorMessage = "الملف لا يحتوي على بيانات صالحة";
@@ -246,7 +246,7 @@
                 };
                 reader.readAsArrayBuffer(file);
             },
-            
+
             confirmImportFromExcel() {
                 if (!this.actions || this.excelPreview.length === 0) {
                     this.importErrorMessage = "لا توجد بيانات صالحة للاستيراد";
@@ -267,7 +267,7 @@
                         this.loading = false; // FIN spinner
                     });
             },
-            
+
             async deleteCandidat(id) {
                 const candidat = this.candidats.find(c => c.id === id);
                 const { db } = await window.initFirebase();
@@ -275,7 +275,7 @@
 
                 let note = null;
                 try {
-                    note = (await get(ref(db, `notes/${id}`))).val();
+                    note = (await get(ref(db, window.orgDataPath(`notes/${id}`)))).val();
                 } catch {
                     this.showSnackbar("حدث خطأ أثناء تحميل الملاحظة");
                     return;
@@ -291,7 +291,7 @@
                         try {
                             await Promise.all([
                                 this.actions.supprimerCandidat(id),
-                                remove(ref(db, `notes/${id}`))
+                                remove(ref(db, window.orgDataPath(`notes/${id}`)))
                             ]);
 
                             this.showSnackbar("تم حذف المرشح بنجاح", async () => {
@@ -299,7 +299,7 @@
                                 if (candidat) {
                                     await this.actions.ajouterCandidat(candidat);
                                     if (note !== null) {
-                                        await set(ref(db, `notes/${id}`), note);
+                                        await set(ref(db, window.orgDataPath(`notes/${id}`)), note);
                                     }
                                     this.showSnackbar("تم التراجع عن الحذف");
                                     this.lastDeletedCandidat = null;
@@ -312,7 +312,7 @@
                 };
             }
         }'
-        
+
          x-init="
             fetchCandidats(data => {
                 candidats = data;
@@ -320,7 +320,7 @@
                 nextId = ids.length ? Math.max(...ids) + 1 : 1;
                 loading = false;
             }).then(result => actions = result)">
-        
+
         <!-- Loading Spinner -->
         <div x-show="loading" class="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50" x-cloak>
             <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
@@ -348,7 +348,7 @@
                             <span x-show="sortKey === 'pays'" x-text="sortAsc ? '↑' : '↓'"></span>
                         </th>
                         <th class="border border-gray-400 p-2 matricule-column cursor-pointer" @click="toggleSort('matricule')">رقم الجامعي
-    						<span x-show="sortKey === 'matricule'" x-text="sortAsc ? '↑' : '↓'"></span>
+    						<span x-show="sortKey === 'matricule'" x-text="sortAsc ? '↑' : '↓'"></span>
 						</th>
                         <th class="border border-gray-400 p-2 name-column cursor-pointer" @click="toggleSort('nom')">الإسم 
                             <span x-show="sortKey === 'nom'" x-text="sortAsc ? '↑' : '↓'"></span>
@@ -437,7 +437,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Modale Importation Excel -->
         <div x-show="showImportModal" class="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center" @click="showImportModal = false" x-cloak>
             <div @click.stop class="bg-white p-6 rounded-lg shadow-lg w-11/12 sm:w-2/3 lg:w-1/2">
