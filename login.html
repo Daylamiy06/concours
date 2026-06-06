@@ -115,6 +115,12 @@
                         const platformRole = user.platformRole || "";
                         const orgId = user.orgId || "";
 
+                        if (user.active === false) {
+                            auth.signOut();
+                            scope.errorMessage = "تم تعطيل هذا الحساب!";
+                            return;
+                        }
+
                         localStorage.setItem("loggedInUser", uid);
                         localStorage.setItem("userRole", role);
                         localStorage.setItem("userOrgId", orgId);
