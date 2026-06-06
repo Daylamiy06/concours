@@ -140,7 +140,6 @@
                                 <th class="p-2 matricule-column">رقم الجامعي</th>
                                 <th class="p-2 hide">عدد المحكمين</th>
                                 <th class="p-2 hide">مجموع الدرجات</th>
-                                <th class="p-2 hide">طريقة الحساب</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -159,7 +158,6 @@
                                     <td class="p-2" x-text="candidat.matricule"></td>
                                     <td class="p-2 hide" x-text="candidat.juryCount || 0"></td>
                                     <td class="p-2 hide" x-text="`${candidat.sumScore || 0}`"></td>
-                                    <td class="p-2 hide" x-text="candidat.calculationMethod === 'jury_average' ? 'متوسط المحكمين' : '-'"></td>
                                 </tr>
                             </template>
                         </tbody>
