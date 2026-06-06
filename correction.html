@@ -500,7 +500,8 @@
             const candidatCorrectionsSnap = await get(ref(db, orgDataPath('corrections/' + selectedId)));
             const candidatCorrections = candidatCorrectionsSnap.val() || {};
             const correctionValues = Object.values(candidatCorrections)
-                .map(correction => Number(correction.totalScore || 0));
+                .map(correction => Number(correction.totalScore))
+                .filter(score => Number.isFinite(score));
             const juryCount = correctionValues.length;
             const sumScore = correctionValues.reduce((sum, score) => sum + score, 0);
             const averageScore = juryCount ? Number((sumScore / juryCount).toFixed(2)) : 0;
@@ -512,6 +513,7 @@
                 ajza: data.ajza || "",
                 matricule: data.matricule || "",
                 juryCount,
+				status: "completed",
                 sumScore: Number(sumScore.toFixed(2)),
                 averageScore,
                 finalScore: averageScore,
