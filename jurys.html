@@ -7,6 +7,7 @@
         selectedMemberUid: null,
         loading: true,
         isSaving: false,
+        showPassword: false,
         currentOrgId: localStorage.getItem("userOrgId") || "",
         form: { nom: "", email: "", password: "", role: "المحكم" },
         toast: { show: false, message: "", type: "success" },
@@ -274,11 +275,8 @@
     <div x-show="loading || isSaving" class="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50" x-cloak>
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
     </div>
-
     <div x-show="toast.show" x-text="toast.message" :class="toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'" class="fixed top-24 left-1/2 -translate-x-1/2 text-white px-4 py-2 rounded shadow-lg z-[70]" x-cloak></div>
-
     <h1 class="text-2xl font-bold mb-4 text-center">إدارة أعضاء المنظمة</h1>
-
     <div class="mb-4 flex flex-col sm:flex-row justify-between gap-4 items-stretch sm:items-center">
         <button @click="openCreateModal()" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">إنشاء حساب جديد</button>
         <input type="text" x-model="searchQuery" placeholder="بحث بالاسم أو البريد أو الدور..."
@@ -344,7 +342,16 @@
                  </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
-                    <input x-model="form.password" type="password" class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right" :placeholder="isEditMode ? 'اتركه فارغًا إذا لم يتغير' : '6 أحرف على الأقل'">
+                    <div class="relative">
+                		<input x-model="form.password" :type="showPassword ? 'text' : 'password'" class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right" :placeholder="isEditMode ? 'اتركه فارغًا إذا لم يتغير' : '6 أحرف على الأقل'">
+                		<button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 left-0 flex items-center px-3">
+                    		<svg class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="showPassword
+                					? 'M12 4.5C7.305 4.5 3.195 7.605 1.89 12c1.305 4.395 5.415 7.5 10.11 7.5s8.805-3.105 10.11-7.5C20.805 7.605 16.695 4.5 12 4.5z M12 15a3 3 0 110-6 3 3 0 010 6zM3 3l18 18'
+                					: 'M12 4.5C7.305 4.5 3.195 7.605 1.89 12c1.305 4.395 5.415 7.5 10.11 7.5s8.805-3.105 10.11-7.5C20.805 7.605 16.695 4.5 12 4.5z M12 15a3 3 0 110-6 3 3 0 010 6z'"/>
+    						</svg>
+                		</button>
+            		</div>
                 </div>
                 <p x-show="isEditMode" class="md:col-span-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">لتغيير البريد أو كلمة المرور سيتم إنشاء حساب جديد وربطه بنفس المنظمة.</p>
              </div>
