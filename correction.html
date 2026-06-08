@@ -54,19 +54,50 @@
                 scores: [30, 30, 30],
                 totalScore: 90,
                 loading: false,
+                orgName: "",
                 annuleQuestions: [false, false, false],
                 soundScore: "",
+                correctionSettings: {
+                    annulOnThreeFath: true,
+                    annulOnAllTanbih: false,
+                    annulOnFathTanbihNinePenalty: false
+                },
                 errors: [
                     { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(8).fill(false) },
                     { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(8).fill(false) },
                     { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(8).fill(false) }
                 ],
+                getQuestionPenalty(index) {
+                    const fathErrors = this.errors[index].fath.filter(c => c).length;
+                    const tanbihErrors = this.errors[index].tanbih.filter(c => c).length;
+                    const jaliErrors = this.errors[index].jali.filter(c => c).length;
+                    const khafiErrors = this.errors[index].khafi.filter(c => c).length;
+
+                    return {
+                        fathErrors,
+                        tanbihErrors,
+                        fathPenalty: fathErrors * 3,
+                        tanbihPenalty: tanbihErrors * 1.5,
+                        jaliPenalty: jaliErrors * 1,
+                        khafiPenalty: khafiErrors * 0.5
+                    };
+                },
+                isQuestionAnnulled(index) {
+                    const penalty = this.getQuestionPenalty(index);
+                    const fathTanbihPenalty = penalty.fathPenalty + penalty.tanbihPenalty;
+
+                    return (
+                        (this.correctionSettings.annulOnThreeFath && penalty.fathErrors === 3) ||
+                        (this.correctionSettings.annulOnAllTanbih && penalty.tanbihErrors === 6) ||
+                        (this.correctionSettings.annulOnFathTanbihNinePenalty && fathTanbihPenalty >= 9)
+                    );
+                },
                 calculateScores() {
                     let baseTotal = 90;
                     let soundTotal = 0;
                     for (let i = 0; i < 3; i++) {
-                        const fathErrors = this.errors[i].fath.filter(c => c).length;
-                        const isAnnule = fathErrors === 3;
+                        const penalty = this.getQuestionPenalty(i);
+                        const isAnnule = this.isQuestionAnnulled(i);
                         this.annuleQuestions[i] = isAnnule;
 
                         if (isAnnule) {
@@ -75,11 +106,7 @@
                             continue;
                         }
 
-                        const fathPenalty = fathErrors * 3;
-                        const tanbihPenalty = this.errors[i].tanbih.filter(c => c).length * 1.5;
-                        const jaliPenalty = this.errors[i].jali.filter(c => c).length * 1;
-                        const khafiPenalty = this.errors[i].khafi.filter(c => c).length * 0.5;
-                        const questionPenalty = fathPenalty + tanbihPenalty + jaliPenalty + khafiPenalty;
+                        const questionPenalty = penalty.fathPenalty + penalty.tanbihPenalty + penalty.jaliPenalty + penalty.khafiPenalty;
 
                         this.scores[i] = 30 - questionPenalty;
                         baseTotal -= questionPenalty;
@@ -88,8 +115,16 @@
                     this.totalScore = baseTotal + soundTotal;
                 },
                 updateAnnuleQuestion(index) {
-                    const fathErrors = this.errors[index].fath.filter(c => c).length;
-                    this.annuleQuestions[index] = fathErrors === 3;
+                    this.annuleQuestions[index] = this.isQuestionAnnulled(index);
+                },
+                applyCorrectionSettings(settings = {}) {
+                    this.correctionSettings = {
+                        annulOnThreeFath: true,
+                        annulOnAllTanbih: false,
+                        annulOnFathTanbihNinePenalty: false,
+                        ...settings
+                    };
+                    this.calculateScores();
                 },
                 resetFields() {
                     this.selectedCandidate = "";
@@ -97,6 +132,7 @@
                     this.scores = [30, 30, 30];
                     this.totalScore = 90;
                     this.soundScore = "";
+                    this.annuleQuestions = [false, false, false];
                     this.errors = [
                         { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(8).fill(false) },
                         { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(8).fill(false) },
@@ -137,7 +173,7 @@
 <body x-data="$store.correction"  class="bg-white p-6">
     <div class="bg-white shadow-md fixed top-0 left-0 w-full z-50">
         <div class="p-4 flex items-center justify-between">
-            <h1 class="text-xl font-bold">استمارة التحكيم</h1>
+            <p x-show="orgName" x-text="orgName" class="text-xl font-bold"></p>
             <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">تسجيل الخروج</button>
         </div>
         <div class="p-2 flex space-x-2 rtl:space-x-reverse text-center">
@@ -177,7 +213,7 @@
                                 <div class="flex flex-wrap justify-center gap-1">
                                     <template x-for="i in 3" :key="i">
                                         <input type="checkbox" x-model="errors[index].fath[i-1]"
-                                            @change="calculateScores(); updateAnnuleQuestion(index)" class="m-1" :disabled="!selectedCandidate">           
+                                            @change="calculateScores()" class="m-1" :disabled="!selectedCandidate">
                                     </template>
                                 </div>
                             </td>
@@ -326,6 +362,7 @@
         const candidatsRef = ref(db, orgDataPath('candidats'));
         const notesRef = ref(db, orgDataPath('notes'));
         const correctionsRef = ref(db, orgDataPath('corrections'));
+        const correctionSettingsRef = ref(db, orgDataPath('correctionSettings'));
 
         async function startLastSeenUpdate(loggedInUser) {
             const updateLastSeen = () => update(userRef, { lastSeen: Date.now() });
@@ -335,11 +372,13 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             if (!loggedInUser || userRole !== "المحكم" || !userOrgId) {
-                alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ربط حسابك بمنظمة !");
+                alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ضبط بيانات المسابقة !");
                 window.location.href = 'login.html';
                 return;
             }
             startLastSeenUpdate(loggedInUser);
+            loadOrganisationName();
+            loadCorrectionSettings();
         });
 
         import { signOut } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-auth.js";        
@@ -352,6 +391,20 @@
             localStorage.removeItem('userOrgId');
             window.location.href = 'login.html';
         };
+
+		async function loadOrganisationName() {
+            try {
+                const snapshot = await get(ref(db, 'organisations/' + userOrgId + '/name'));
+                Alpine.store('correction').orgName = snapshot.val() || "";
+            } catch (error) {
+                Alpine.store('correction').orgName = "";
+            }
+        }
+
+        async function loadCorrectionSettings() {
+            const snapshot = await get(correctionSettingsRef);
+            Alpine.store('correction').applyCorrectionSettings(snapshot.val() || {});
+        }
 
         const numerosRef = ref(db, orgDataPath('numeros'));
 		let numerosData = {};
@@ -493,6 +546,7 @@
                 soundScore: store.soundScore === "" ? 0 : parseFloat(store.soundScore),
                 totalScore: correctionScore,
                 errors: store.errors,
+                correctionSettings: store.correctionSettings,
                 ...annulations,
                 createdAt: Date.now()
             });
@@ -513,7 +567,7 @@
                 ajza: data.ajza || "",
                 matricule: data.matricule || "",
                 juryCount,
-				status: "completed",
+                status: "completed",
                 sumScore: Number(sumScore.toFixed(2)),
                 averageScore,
                 finalScore: averageScore,
@@ -547,7 +601,6 @@
             localStorage.setItem('selectedCandidate:correction', selectedValue);
             window.injectNumeroDataForCandidate(selectedValue);
         }
-
     </script>
 </body>
 </html>
