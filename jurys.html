@@ -10,6 +10,11 @@
         showPassword: false,
         currentOrgId: localStorage.getItem("userOrgId") || "",
         form: { nom: "", email: "", password: "", role: "المحكم" },
+        correctionSettings: {
+            annulOnThreeFath: true,
+            annulOnAllTanbih: false,
+            annulOnFathTanbihNinePenalty: false
+        },
         toast: { show: false, message: "", type: "success" },
         confirmDelete: { visible: false, member: null, confirm: null },
 
@@ -26,7 +31,10 @@
                 this.loading = false;
                 return;
             }
-            await this.listenMembers();
+            await Promise.all([
+                this.listenMembers(),
+                this.loadCorrectionSettings()
+            ]);
         },
 
         async listenMembers() {
@@ -43,6 +51,38 @@
             } catch (error) {
                 this.showToast(error.message, "error");
                 this.loading = false;
+            }
+        },
+
+		async loadCorrectionSettings() {
+            try {
+                const { db } = await window.initFirebase();
+                const { ref, get } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+                const snapshot = await get(ref(db, window.orgDataPath("correctionSettings")));
+                this.correctionSettings = {
+                    annulOnThreeFath: true,
+                    annulOnAllTanbih: false,
+                    annulOnFathTanbihNinePenalty: false,
+                    ...(snapshot.val() || {})
+                };
+            } catch (error) {
+                this.showToast(error.message, "error");
+            }
+        },
+
+        async saveCorrectionSettings() {
+            try {
+                const { db } = await window.initFirebase();
+                const { ref, set } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+                await set(ref(db, window.orgDataPath("correctionSettings")), {
+                    annulOnThreeFath: !!this.correctionSettings.annulOnThreeFath,
+                    annulOnAllTanbih: !!this.correctionSettings.annulOnAllTanbih,
+                    annulOnFathTanbihNinePenalty: !!this.correctionSettings.annulOnFathTanbihNinePenalty,
+                    updatedAt: Date.now()
+                });
+                this.showToast("تم حفظ الاختيار");
+            } catch (error) {
+                this.showToast(error.message, "error");
             }
         },
 
@@ -92,7 +132,7 @@
                 return false;
             }
             if (this.form.role === "المرشح" && this.candidateAccountExists(this.selectedMemberUid || "")) {
-                this.showToast("يوجد حساب مرشح بالفعل داخل هذه المنظمة", "error");
+                this.showToast("يوجد حساب للمرشحين بالفعل", "error");
                 return false;
              }
             return true;
@@ -276,7 +316,48 @@
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
     </div>
     <div x-show="toast.show" x-text="toast.message" :class="toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'" class="fixed top-24 left-1/2 -translate-x-1/2 text-white px-4 py-2 rounded shadow-lg z-[70]" x-cloak></div>
-    <h1 class="text-2xl font-bold mb-4 text-center">إدارة أعضاء المنظمة</h1>
+    <h1 class="text-2xl font-bold mb-2 text-center">إعدادات التحكيم والحسابات</h1>
+    <p class="text-center text-gray-600 mb-6">اختر طريقة احتساب الأسئلة الملغاة، واضبط حسابات الدخول الخاصة بالحكام والمرشحين.</p>
+
+    <section class="mb-8 rounded-2xl border border-blue-100 bg-gradient-to-l from-blue-50 to-white p-5 shadow-sm">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
+            <h2 class="text-xl font-bold text-blue-900">إعدادات إلغاء السؤال في التصحيح</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label class="block rounded-xl border bg-white p-4 shadow-sm cursor-pointer hover:border-blue-300 transition" :class="correctionSettings.annulOnThreeFath ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'">
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" x-model="correctionSettings.annulOnThreeFath" @change="saveCorrectionSettings()" class="mt-1 h-5 w-5 accent-blue-600">
+                    <div>
+                        <h3 class="font-bold text-gray-900">إلغاء السؤال بعد 3 أخطاء فتح</h3>
+                        <p class="mt-2 text-sm text-gray-600 leading-6">عند وصول أخطاء الفتح في السؤال إلى ثلاث مرات، لا تُحتسب نقاط ذلك السؤال.</p>
+                    </div>
+                </div>
+            </label>
+
+            <label class="block rounded-xl border bg-white p-4 shadow-sm cursor-pointer hover:border-blue-300 transition" :class="correctionSettings.annulOnAllTanbih ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'">
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" x-model="correctionSettings.annulOnAllTanbih" @change="saveCorrectionSettings()" class="mt-1 h-5 w-5 accent-blue-600">
+                    <div>
+                        <h3 class="font-bold text-gray-900">إلغاء السؤال عند اكتمال التنبيه</h3>
+                        <p class="mt-2 text-sm text-gray-600 leading-6">إذا امتلأت خانات التنبيه في سؤال واحد، يصبح السؤال غير محتسب في الدرجة.</p>
+                    </div>
+                </div>
+            </label>
+
+            <label class="block rounded-xl border bg-white p-4 shadow-sm cursor-pointer hover:border-blue-300 transition" :class="correctionSettings.annulOnFathTanbihNinePenalty ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'">
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" x-model="correctionSettings.annulOnFathTanbihNinePenalty" @change="saveCorrectionSettings()" class="mt-1 h-5 w-5 accent-blue-600">
+                    <div>
+                        <h3 class="font-bold text-gray-900">إلغاء السؤال عند بلوغ خصم 9 نقاط</h3>
+                        <p class="mt-2 text-sm text-gray-600 leading-6">إذا أصبح خصم الفتح والتنبيه كبيراً في سؤال واحد، يتم اعتبار السؤال ملغى.</p>
+                    </div>
+                </div>
+            </label>
+        </div>
+    </section>
+
+    <h2 class="text-xl font-bold mb-4 text-center">إدارة حسابات الدخول</h2>
     <div class="mb-4 flex flex-col sm:flex-row justify-between gap-4 items-stretch sm:items-center">
         <button @click="openCreateModal()" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">إنشاء حساب جديد</button>
         <input type="text" x-model="searchQuery" placeholder="بحث بالاسم أو البريد أو الدور..."
@@ -353,7 +434,7 @@
                 		</button>
             		</div>
                 </div>
-                <p x-show="isEditMode" class="md:col-span-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">لتغيير البريد أو كلمة المرور سيتم إنشاء حساب جديد وربطه بنفس المنظمة.</p>
+                <p x-show="isEditMode" class="md:col-span-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">لتغيير البريد أو كلمة المرور سيتم إنشاء حساب دخول جديد بدل الحساب الحالي.</p>
              </div>
             <div class="flex gap-3 mt-6">
                 <button @click="saveMember()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-md" x-text="isEditMode ? 'حفظ التعديلات' : 'إنشاء الحساب'"></button>
