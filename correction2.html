@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+	<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';</script>
+    <title>استمارة التحكيم - 2 أسئلة</title>
+    <style>
+        input[type="checkbox"]:checked::before {
+            content: "✗";
+            color: red;
+            font-size: 1.2em;
+            font-weight: bold;
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        input[type="checkbox"] {
+            position: relative;
+            appearance: none;
+            width: 1.2em;
+            height: 1.2em;
+            border: 2px solid #6b7280;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .fixed-width {
+            width: 990px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .active {
+            border-bottom: 3px solid #007BFF;
+            font-weight: bold;
+            background-color: #e0f2fe;
+            border-radius: 5px;
+        }
+        select:focus {
+            border-color: #3b82f6 !important;
+            outline: none;
+        }
+    </style>
+
+    <!-- Alpine store correction -->
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('correction', {
+                selectedCandidate: "",
+                activeTab: 'correction',
+                scores: [45, 45],
+                totalScore: 90,
+                loading: false,
+                orgName: "",
+                annuleQuestions: [false, false],
+                soundScore: "",
+                correctionSettings: {
+                    correctionQuestionCount: 2,
+                    annulOnThreeFath: true,
+                    annulOnAllTanbih: false,
+                    annulOnFathTanbihNinePenalty: false
+                },
+                errors: [
+                    { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(10).fill(false) },
+                    { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(10).fill(false) }
+                ],
+                getQuestionPenalty(index) {
+                    const fathErrors = this.errors[index].fath.filter(c => c).length;
+                    const tanbihErrors = this.errors[index].tanbih.filter(c => c).length;
+                    const jaliErrors = this.errors[index].jali.filter(c => c).length;
+                    const khafiErrors = this.errors[index].khafi.filter(c => c).length;
+
+                    return {
+                        fathErrors,
+                        tanbihErrors,
+                        fathPenalty: fathErrors * 5,
+                        tanbihPenalty: tanbihErrors * 2.5,
+                        jaliPenalty: jaliErrors * 1.25,
+                        khafiPenalty: khafiErrors * 0.5
+                    };
+                },
+                isQuestionAnnulled(index) {
+                    const penalty = this.getQuestionPenalty(index);
+                    const fathTanbihPenalty = penalty.fathPenalty + penalty.tanbihPenalty;
+
+                    return (
+                        (this.correctionSettings.annulOnThreeFath && penalty.fathErrors === 3) ||
+                        (this.correctionSettings.annulOnAllTanbih && penalty.tanbihErrors === 6) ||
+                        (this.correctionSettings.annulOnFathTanbihNinePenalty && fathTanbihPenalty >= 15)
+                    );
+                },
+                calculateScores() {
+                    let baseTotal = 90;
+                    let soundTotal = 0;
+                    for (let i = 0; i < 2; i++) {
+                        const penalty = this.getQuestionPenalty(i);
+                        const isAnnule = this.isQuestionAnnulled(i);
+                        this.annuleQuestions[i] = isAnnule;
+
+                        if (isAnnule) {
+                            this.scores[i] = 0;
+                            baseTotal -= 45;
+                            continue;
+                        }
+
+                        const questionPenalty = penalty.fathPenalty + penalty.tanbihPenalty + penalty.jaliPenalty + penalty.khafiPenalty;
+                        this.scores[i] = Number((45 - questionPenalty).toFixed(2));
+                        baseTotal -= questionPenalty;
+                    }
+                    soundTotal = this.soundScore === "" ? 0 : parseFloat(this.soundScore);
+                    this.totalScore = Number((baseTotal + soundTotal).toFixed(2));
+                },
+                updateAnnuleQuestion(index) {
+                    this.annuleQuestions[index] = this.isQuestionAnnulled(index);
+                },
+                applyCorrectionSettings(settings = {}) {
+                    this.correctionSettings = {
+                        correctionQuestionCount: 2,
+                        annulOnThreeFath: true,
+                        annulOnAllTanbih: false,
+                        annulOnFathTanbihNinePenalty: false,
+                        ...settings
+                    };
+                    this.calculateScores();
+                },
+                resetFields() {
+                    this.selectedCandidate = "";
+                    document.getElementById("candidatSelect").selectedIndex = 0;
+                    this.scores = [45, 45];
+                    this.totalScore = 90;
+                    this.soundScore = "";
+                    this.annuleQuestions = [false, false];
+                    this.errors = [
+                        { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(10).fill(false) },
+                        { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(10).fill(false) }
+                    ];
+                }
+            });
+        });
+    </script>
+
+    <!-- Toast -->
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('toast', {
+                show: false,
+                message: '',
+                type: 'success',
+                timeout: null,
+                trigger(message, type = 'success') {
+                    this.message = message;
+                    this.type = type;
+                    this.show = true;
+                    clearTimeout(this.timeout);
+                    this.timeout = setTimeout(() => {
+                        this.show = false;
+                    }, 4000);
+                }
+            });
+        });
+
+        window.showToast = function (message, type = 'success') {
+            Alpine.store('toast').trigger(message, type);
+        };
+    </script>
+</head>
+<body x-data="$store.correction"  class="bg-white p-6">
+    <div class="bg-white shadow-md fixed top-0 left-0 w-full z-50">
+        <div class="p-4 flex items-center justify-between">
+            <p x-show="orgName" x-text="orgName" class="text-xl font-bold"></p>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">تسجيل الخروج</button>
+        </div>
+        <div class="p-2 flex space-x-2 rtl:space-x-reverse text-center">
+  	  	<button @click="activeTab = 'correction'" :class="{ 'active': activeTab === 'correction' }" class="tab p-2 text-blue-700 rounded transition">تقييم التلاوة</button>
+    		<button x-show="selectedCandidate" @click="activeTab = 'other'" :class="{ 'active': activeTab === 'other' }" class="tab p-2 text-blue-700 rounded transition">عرض صفحة القرآن</button>
+		</div>
+	</div><div class="h-36"></div>
+
+    <div x-show="loading" class="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50" x-cloak>
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+    </div>
+
+    <div x-show="activeTab === 'correction'" x-cloak>
+        <div class="mb-4 flex items-center gap-2">
+            <label class="block text-lg font-bold whitespace-nowrap">قائمة المرشحين :</label>
+            <select id="candidatSelect" class="border p-2 rounded w-64" @change="handleCandidateChange($event)">
+                <option value="">حدد مرشحًا</option>
+            </select>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse border border-gray-400 text-center">
+                <thead>
+                    <tr class="bg-white">
+                        <th class="p-2 border-r-0 border-t-0 w-28"></th>
+                        <th class="border border-gray-400 p-2 w-48">السؤال الأول (45)</th>
+                        <th class="border border-gray-400 p-2 w-48">السؤال الثاني (45)</th>
+                        <th class="border border-gray-400 p-2 w-24">الدرجة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="bg-white">
+                        <td class="border border-gray-400 border-t-0 p-2 font-bold w-28">فتح - 5</td>
+                        <template x-for="(_, index) in scores" :key="index">
+                            <td class="border border-gray-400 p-2 w-48">
+                                <div class="flex flex-wrap justify-center gap-1">
+                                    <template x-for="i in 3" :key="i">
+                                        <input type="checkbox" x-model="errors[index].fath[i-1]"
+                                            @change="calculateScores()" class="m-1" :disabled="!selectedCandidate">           
+                                    </template>
+                                </div>
+                            </td>
+                        </template>
+                        <td class="border border-gray-400 p-2 font-bold text-lg w-24" rowspan="7"
+                            x-text="totalScore + '/100'"></td>
+                    </tr>
+
+                    <tr class="bg-white">
+                        <td class="border border-gray-400 p-2 font-bold w-28">تنبيه - 2.5</td>
+                        <template x-for="(_, index) in scores" :key="index">
+                            <td class="border border-gray-400 p-2 w-48">
+                                <div class="flex flex-wrap justify-center gap-1">
+                                    <template x-for="i in 6" :key="i">
+                                        <input type="checkbox" x-model="errors[index].tanbih[i-1]"
+                                            @change="calculateScores()" class="m-1" :disabled="!selectedCandidate">
+                                    </template>
+                                </div>
+                            </td>
+                        </template>
+                    </tr>
+
+                    <tr class="bg-white">
+                        <td class="border border-gray-400 p-2 font-bold w-28">لحن الجلي - 1.25</td>
+                        <template x-for="(_, index) in scores" :key="index">
+                            <td class="border border-gray-400 p-2 w-48">
+                                <div class="flex flex-wrap justify-center gap-1">
+                                    <template x-for="i in 8" :key="i">
+                                        <input type="checkbox" x-model="errors[index].jali[i-1]"
+                                            @change="calculateScores()" class="m-1" :disabled="!selectedCandidate">
+                                    </template>
+                                </div>
+                            </td>
+                        </template>
+                    </tr>
+
+                    <tr class="bg-white">
+                        <td class="border border-gray-400 p-2 font-bold w-28">لحن الخفي - 0.5</td>
+                        <template x-for="(_, index) in scores" :key="index">
+                            <td class="border border-gray-400 p-2 w-48">
+                                <div class="flex flex-wrap justify-center gap-1">
+                                    <template x-for="i in 10" :key="i">
+                                        <input type="checkbox" x-model="errors[index].khafi[i-1]"
+                                            @change="calculateScores()" class="m-1" :disabled="!selectedCandidate">
+                                    </template>
+                                </div>
+                            </td>
+                        </template>
+                    </tr>
+
+                    <tr>
+                        <td class="border border-gray-400 p-2 font-bold bg-white w-28">المجموع</td>
+                        <template x-for="(score, index) in scores" :key="index">
+                            <td class="border border-gray-400 p-2 text-lg font-bold w-48" x-text="score + '/45'"></td>
+                        </template>
+                    </tr>
+
+                    <tr class="bg-white">
+                        <td class="border border-gray-400 p-2 font-bold w-28">الأداء و الصوت - 10</td>
+                        <td colspan="2" class="border border-gray-400 p-2 w-48">
+                            <select x-model="soundScore" @change="calculateScores()" class="w-full h-10 text-center" :disabled="!selectedCandidate">
+                                <option value="" selected>حدد ملاحظة</option>
+                                <template x-for="i in 21" :key="i">
+                                    <option :value="(i - 1) * 0.5" x-text="(i - 1) * 0.5"></option>
+                                </template>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex justify-center relative mt-4">
+            <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-1/4" @click="window.validateScores()">تأكيد</button>
+            <div x-data x-show="$store.toast.show" x-text="$store.toast.message" :class="{
+                'bg-green-500': $store.toast.type === 'success',
+                'bg-red-500': $store.toast.type === 'error'
+            }" class="absolute -top-12 left-1/2 transform -translate-x-1/2 text-white px-4 py-2 rounded shadow-lg z-50" x-cloak>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="activeTab === 'other'" x-cloak x-data="{ loaded: false }" x-init="$watch('activeTab', async val => {
+        if (val === 'other' && !loaded) {
+            const res = await fetch('document.html');
+            const html = await res.text();
+            const container = $refs.container;
+            container.innerHTML = html;
+            const scripts = container.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                if (oldScript.src) {
+                newScript.src = oldScript.src;
+                newScript.defer = oldScript.defer;
+                } else {
+                newScript.textContent = oldScript.textContent;
+                }
+                document.body.appendChild(newScript);
+            });
+            Alpine.initTree(container);
+            loaded = true;
+            }
+        })">
+        <div x-ref="container"></div>
+    </div>
+        
+    <footer class="bg-white border-t mt-10 py-4 text-center text-sm text-gray-600">
+        <p>© 2025 مسابقة الريان - جميع الحقوق محفوظة</p>
+        <p class="mt-1">تم التطوير بواسطة Day06 - 
+            <a href="https://wa.me/261327189552" class="text-blue-500 hover:underline" target="_blank">واتساب</a>
+        </p>
+    </footer>
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
+        import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBA7alPaDE3YTxABZLTkf6sd2dqjyAMF3g",
+            authDomain: "musabaqat-92dbf.firebaseapp.com",
+            databaseURL: "https://musabaqat-92dbf-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "musabaqat-92dbf",
+            storageBucket: "musabaqat-92dbf.firebasestorage.app",
+            messagingSenderId: "871664709981",
+            appId: "1:871664709981:web:f3bae49d910885faad78b4",
+            measurementId: "G-HP0098P694"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+        
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+            }
+        });
+        
+        const loggedInUser = localStorage.getItem('loggedInUser');
+        const userRole = localStorage.getItem('userRole');
+        const userOrgId = localStorage.getItem('userOrgId');
+        const orgDataPath = (path) => userOrgId ? `orgData/${userOrgId}/${path}` : `orgData/__missing_org__/${path}`;
+        const userRef = ref(db, 'utilisateurs/' + loggedInUser);
+        const candidatsRef = ref(db, orgDataPath('candidats'));
+        const notesRef = ref(db, orgDataPath('notes'));
+        const correctionsRef = ref(db, orgDataPath('corrections'));
+        const correctionSettingsRef = ref(db, orgDataPath('correctionSettings'));
+
+        async function startLastSeenUpdate(loggedInUser) {
+            const updateLastSeen = () => update(userRef, { lastSeen: Date.now() });
+            updateLastSeen();
+            setInterval(updateLastSeen, 60 * 1000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!loggedInUser || userRole !== "المحكم" || !userOrgId) {
+                alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ضبط بيانات المسابقة !");
+                window.location.href = 'login.html';
+                return;
+            }
+            startLastSeenUpdate(loggedInUser);
+            loadOrganisationName();
+            loadCorrectionSettings();
+        });
+
+        import { signOut } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-auth.js";        
+        window.logout = async function () {            
+            await update(userRef, { lastSeen: Date.now() - 6 * 60 * 1000 });
+            await signOut(auth);
+
+            localStorage.removeItem('loggedInUser');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userOrgId');
+            window.location.href = 'login.html';
+        };
+
+        async function loadOrganisationName() {
+            try {
+                const snapshot = await get(ref(db, 'organisations/' + userOrgId + '/name'));
+                Alpine.store('correction').orgName = snapshot.val() || "";
+            } catch (error) {
+                Alpine.store('correction').orgName = "";
+            }
+        }
+
+        async function loadCorrectionSettings() {
+            const snapshot = await get(correctionSettingsRef);
+            Alpine.store('correction').applyCorrectionSettings(snapshot.val() || {});
+        }
+
+        const numerosRef = ref(db, orgDataPath('numeros'));
+		let numerosData = {};
+
+		window.injectNumeroDataForCandidate = function (candidatId) {
+			const numeroEntry = Object.values(numerosData).find(n => String(n.candidatId) === String(candidatId));
+
+			if (numeroEntry) {
+				window.injectedPages = {
+					pageQ1: Number(numeroEntry.pageFromQ1 || 1),
+					pageQ2: Number(numeroEntry.pageFromQ2 || 1),
+					pageQ3: Number(numeroEntry.pageFromQ3 || 1)
+				};
+				window.injectedSurahs = {
+					pageQ1: numeroEntry.sourateFromQ1 || "",
+					pageQ2: numeroEntry.sourateFromQ2 || "",
+					pageQ3: numeroEntry.sourateFromQ3 || ""
+				};
+				window.injectedVersets = {
+					pageQ1: numeroEntry.versetFromQ1 || "",
+					pageQ2: numeroEntry.versetFromQ2 || "",
+					pageQ3: numeroEntry.versetFromQ3 || ""
+				};
+				window.injectedRanges = {
+					q1: {
+						startSurah: Number(numeroEntry.sourateFromQ1 || 0),
+						startAyah: Number(numeroEntry.versetFromQ1 || 0),
+						endSurah: Number(numeroEntry.sourateToQ1 || 0),
+						endAyah: Number(numeroEntry.versetToQ1 || 0)
+					},
+					q2: {
+						startSurah: Number(numeroEntry.sourateFromQ2 || 0),
+						startAyah: Number(numeroEntry.versetFromQ2 || 0),
+						endSurah: Number(numeroEntry.sourateToQ2 || 0),
+						endAyah: Number(numeroEntry.versetToQ2 || 0)
+					},
+					q3: {
+						startSurah: Number(numeroEntry.sourateFromQ3 || 0),
+						startAyah: Number(numeroEntry.versetFromQ3 || 0),
+						endSurah: Number(numeroEntry.sourateToQ3 || 0),
+						endAyah: Number(numeroEntry.versetToQ3 || 0)
+					}
+				};
+			} else {
+				window.injectedPages = { pageQ1: 1, pageQ2: 1, pageQ3: 1 };
+				window.injectedSurahs = { pageQ1: "", pageQ2: "", pageQ3: "" };
+				window.injectedVersets = { pageQ1: "", pageQ2: "", pageQ3: "" };
+				window.injectedRanges = {
+					q1: { startSurah: 0, startAyah: 0, endSurah: 0, endAyah: 0 },
+					q2: { startSurah: 0, startAyah: 0, endSurah: 0, endAyah: 0 },
+					q3: { startSurah: 0, startAyah: 0, endSurah: 0, endAyah: 0 }
+				};
+			}
+
+			window.dispatchEvent(new CustomEvent('numero-data-updated', {
+				detail: {
+					pages: window.injectedPages,
+					surahs: window.injectedSurahs,
+					versets: window.injectedVersets,
+					ranges: window.injectedRanges
+				}
+			}));
+		}
+		
+		onValue(numerosRef, (snapshot) => {
+    		numerosData = snapshot.val() || {};
+    		chargerCandidats();
+		});
+
+		async function chargerCandidats() {
+    		const candidatsSnapshot = await get(candidatsRef);
+    		const correctionsSnapshot = await get(correctionsRef);
+    		const candidatsData = candidatsSnapshot.val() || {};
+    		const correctionsData = correctionsSnapshot.val() || {};
+    		const selectElement = document.getElementById("candidatSelect");
+    		selectElement.innerHTML = '<option value="">حدد مرشحًا</option>';
+
+    		Object.entries(numerosData).forEach(([numeroId, numero]) => {
+        		const candidatId = numero.candidatId;
+            	const juryCorrection = correctionsData?.[candidatId]?.[loggedInUser];
+
+        		if (!juryCorrection && candidatsData[candidatId]) {
+            		const candidat = candidatsData[candidatId];
+                	const option = document.createElement("option");
+                	option.value = candidatId;
+                	option.textContent = candidat.nom || candidat.name || `مرشح ${candidatId}`;
+                	selectElement.appendChild(option);
+        		}
+    		});
+
+			localStorage.removeItem('selectedCandidate:correction');
+			selectElement.value = "";
+			Alpine.store('correction').selectedCandidate = "";
+			window.injectNumeroDataForCandidate("");
+	    	window.allCandidats = candidatsData;
+   		 window.allCorrections = correctionsData;
+		}
+
+        window.validateScores = async function () {
+            const store = Alpine.store("correction");
+            const selectedId = document.getElementById("candidatSelect").value;
+            const correctionScore = store.totalScore;
+
+            if (!selectedId) {
+                showToast("يرجى تحديد المرشح", "error");
+                return;
+            }
+
+            store.loading = true;
+            const candidatRef = ref(db, orgDataPath('candidats/' + selectedId));
+            const snapshot = await get(candidatRef);
+
+            if (!snapshot.exists()) {
+                showToast("المرشح غير موجود", "error");
+                store.loading = false;
+                return;
+            }
+
+            const correctionRef = ref(db, orgDataPath('corrections/' + selectedId + '/' + loggedInUser));
+            const existingCorrection = await get(correctionRef);
+
+            if (existingCorrection.exists()) {
+                showToast("لقد قمت بتقييم هذا المرشح من قبل", "error");
+                store.loading = false;
+                return;
+            }
+
+            const data = snapshot.val();
+            const annulations = {};
+            store.annuleQuestions.forEach((val, i) => {
+                annulations[`annulequestion${i + 1}`] = val;
+            });
+
+            await set(correctionRef, {
+                candidatId: Number(selectedId),
+                juryUid: loggedInUser,
+                orgId: userOrgId,
+                scores: store.scores,
+                soundScore: store.soundScore === "" ? 0 : parseFloat(store.soundScore),
+                totalScore: correctionScore,
+                errors: store.errors,
+                correctionSettings: store.correctionSettings,
+                ...annulations,
+                createdAt: Date.now()
+            });
+
+            const candidatCorrectionsSnap = await get(ref(db, orgDataPath('corrections/' + selectedId)));
+            const candidatCorrections = candidatCorrectionsSnap.val() || {};
+            const correctionValues = Object.values(candidatCorrections)
+                .map(correction => Number(correction.totalScore))
+                .filter(score => Number.isFinite(score));
+            const juryCount = correctionValues.length;
+            const sumScore = correctionValues.reduce((sum, score) => sum + score, 0);
+            const averageScore = juryCount ? Number((sumScore / juryCount).toFixed(2)) : 0;
+
+            await set(ref(db, orgDataPath('notes/' + selectedId)), {
+                id: Number(selectedId),
+                nom: data.nom || data.name || "",
+                pays: data.pays || "",
+                ajza: data.ajza || "",
+                matricule: data.matricule || "",
+                juryCount,
+				status: "completed",
+                sumScore: Number(sumScore.toFixed(2)),
+                averageScore,
+                finalScore: averageScore,
+                notetotale: averageScore,
+                updatedAt: Date.now()
+            });
+
+            showToast("تم تسجيل تقييم المحكم بنجاح !", "success");
+            store.resetFields();
+            localStorage.removeItem('selectedCandidate:correction');
+            await chargerCandidats();
+            store.loading = false;
+        };
+    </script>
+    <script>
+        async function handleCandidateChange(event) {
+            const store = Alpine.store("correction");
+            const selectedValue = event.target.value;
+            store.scores = [45, 45];
+            store.totalScore = 90;
+            store.soundScore = "";
+            store.errors = [
+                { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(10).fill(false) },
+                { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(10).fill(false) }
+            ];
+            store.annuleQuestions = [false, false];
+            store.selectedCandidate = selectedValue;
+            localStorage.setItem('selectedCandidate:correction', selectedValue);
+            window.injectNumeroDataForCandidate(selectedValue);
+        }
+    </script>
+</body>
+</html>
