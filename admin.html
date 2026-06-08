@@ -24,7 +24,7 @@
             const userOrgId = localStorage.getItem('userOrgId');
 
             if (!loggedInUser || userRole !== "المسؤول" || !userOrgId) {
-                alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ربط حسابك بمنظمة !");
+                alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ضبط بيانات المسابقة !");
                 window.location.href = 'login.html';
                 return;
             }
@@ -47,7 +47,7 @@
             };
 
             const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js");
-            const { getDatabase } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+            const { getDatabase } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
             const { getAuth, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-auth.js");
 
             const app = initializeApp(firebaseConfig);
@@ -69,7 +69,7 @@
 
         window.fetchCandidats = async function (callbackOnData) {
             const { db } = await window.initFirebase();
-            const { ref, set, remove, onValue } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+            const { ref, set, remove, onValue } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
 
             const candidatsRef = ref(db, window.orgDataPath('candidats'));
             onValue(candidatsRef, (snapshot) => {
@@ -89,7 +89,7 @@
 
         window.fetchnotes = async function (callbackOnData) {
             const { db } = await window.initFirebase();
-            const { ref, onValue } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+            const { ref, onValue } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
 
             const notesRef = ref(db, window.orgDataPath('notes'));
             onValue(notesRef, (snapshot) => {
@@ -104,7 +104,7 @@
         
         window.fetchNumeros = async function (callbackOnData) {
             const { db } = await window.initFirebase();
-            const { ref, set, remove, onValue } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+            const { ref, set, remove, onValue } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
 
             const numerosRef = ref(db, window.orgDataPath('numeros'));
             onValue(numerosRef, (snapshot) => {
@@ -124,7 +124,7 @@
 
         async function startLastSeenUpdate(loggedInUser) {
             const { db } = await window.initFirebase();
-            const { ref, update } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+            const { ref, update } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
 
             const userRef = ref(db, 'utilisateurs/' + loggedInUser);
 
@@ -137,7 +137,7 @@
             const loggedInUser = localStorage.getItem('loggedInUser');
 
             const { db, auth } = await window.initFirebase();
-            const { ref, update } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+            const { ref, update } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
             const { signOut } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-auth.js");
 
             const userRef = ref(db, 'utilisateurs/' + loggedInUser);
@@ -155,6 +155,7 @@
 <body class="bg-gray-100">
     <div x-data="{
         active: 'listeCandidats',
+        orgName: '',
         snackbarVisible: false,
         snackbarMessage: '',
         snackbarAction: null,
@@ -168,6 +169,16 @@
             visible: false,
             message: '',
             confirm: null
+        },
+        async loadOrganisationName() {
+            try {
+                const { db } = await window.initFirebase();
+                const { ref, get } = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
+                const snapshot = await get(ref(db, 'organisations/' + localStorage.getItem('userOrgId') + '/name'));
+                this.orgName = snapshot.val() || '';
+            } catch (error) {
+                this.orgName = '';
+            }
         },
         loadContent(tab) {
             this.isLoading = true;
@@ -232,13 +243,16 @@
                 };
             };
         }
-    }" x-init="loadContent('listeCandidats')" class="pt-36">
+    }" x-init="loadOrganisationName(); loadContent('listeCandidats')" class="pt-36">
 
         <div class="bg-white shadow-md fixed top-0 left-0 w-full z-50">
             <div class="p-4 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-user-shield text-black text-2xl"></i>
-                    <h1 class="text-xl font-bold">المسؤول</h1>
+                    <div>
+                        <!--<h1 class="text-xl font-bold">المسؤول</h1>-->
+                        <p x-show="orgName" x-text="orgName" class="text-xl font-bold"></p>
+                    </div>
                 </div>
                 <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">تسجيل الخروج</button>
             </div>
@@ -258,7 +272,7 @@
                 </button>
                 <button class="tab p-2 text-blue-700 rounded transition"
                     @click="active = 'jurys'; loadContent('jurys')"
-                    :class="{ active: active === 'jurys' }">            إدارة الحكام
+					:class="{ active: active === 'jurys' }">إعدادات التحكيم 
                 </button>
             </div>
         </div>
