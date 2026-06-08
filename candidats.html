@@ -12,6 +12,7 @@
     Alpine.store('candidat', {
       selectedAjza: "",
       loading: false,
+      orgName: "",
       numeros: [],
       candidats: [],
       messageTemporaire: "",
@@ -31,11 +32,12 @@
 
     <!-- Header -->
     <div class="mb-4 flex items-center gap-2">
-      <h1 class="text-xl font-bold select-none cursor-pointer" 
+      <h1 x-show="orgName" x-text="orgName" class="text-xl font-bold select-none cursor-pointer" 
           title="انقر مرتين لإظهار أو إخفاء الفلاتر"
           @dblclick="showFilters = !showFilters">
         تصحيح المرشح
       </h1>
+      <!--<span x-show="orgName" x-text="orgName" class="text-sm text-gray-600"></span>-->
       <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition mr-auto" x-show="showFilters" x-transition>تسجيل الخروج</button>
     </div>
 
@@ -95,7 +97,7 @@
   <!-- Script Firebase -->
   <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
-  import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
+  import { getDatabase, ref, get, onValue, update } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -130,15 +132,25 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     if (!loggedInUser || userRole !== "المرشح" || !userOrgId) {
-      alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ربط حسابك بمنظمة !");
+      alert("ليس لديك صلاحية للوصول إلى هذه الصفحة أو لم يتم ضبط بيانات المسابقة !");
       window.location.href = 'login.html';
       return;
     }
     startLastSeenUpdate();
+    loadOrganisationName();
     loadNumeros();
     loadCandidats();
     syncSessionSelectionnee();
   });
+
+  async function loadOrganisationName() {
+    try {
+      const snapshot = await get(ref(db, 'organisations/' + userOrgId + '/name'));
+      store.orgName = snapshot.val() || "";
+    } catch (error) {
+      store.orgName = "";
+    }
+  }
 
   function loadNumeros() {
     store.loading = true;
