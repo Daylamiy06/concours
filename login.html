@@ -80,6 +80,27 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
+		async function redirectToCorrectionPage(orgId) {
+            if (!orgId) {
+                window.location.href = "correction.html";
+                return;
+            }
+
+            try {
+                const snapshot = await get(child(ref(db), `orgData/${orgId}/correctionSettings/correctionQuestionCount`));
+                const questionCount = Number(snapshot.val()) || 3;
+                if (questionCount === 2) {
+                    window.location.href = "correction2.html";
+                } else if (questionCount === 5) {
+                    window.location.href = "correction5.html";
+                } else {
+                    window.location.href = "correction.html";
+                }
+            } catch (error) {
+                window.location.href = "correction.html";
+            }
+        }
+        
         window.seConnecter = function () {
             const email = document.getElementById("login").value.trim();
             const password = document.getElementById("password").value.trim();
@@ -114,7 +135,7 @@
                         const role = user.role || "غير معروف";
                         const platformRole = user.platformRole || "";
                         const orgId = user.orgId || "";
-
+                        
                         if (user.active === false) {
                             auth.signOut();
                             scope.errorMessage = "تم تعطيل هذا الحساب!";
@@ -133,7 +154,7 @@
 
                         switch (role) {
                             case "المسؤول": window.location.href = "admin.html"; break;
-                            case "المحكم": window.location.href = "correction.html"; break;
+                            case "المحكم": redirectToCorrectionPage(orgId); break;
                             case "المرشح": window.location.href = "candidats.html"; break;
                             default: scope.errorMessage = "دور غير معروف!";
                         }
