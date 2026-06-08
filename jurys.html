@@ -11,6 +11,7 @@
         currentOrgId: localStorage.getItem("userOrgId") || "",
         form: { nom: "", email: "", password: "", role: "المحكم" },
         correctionSettings: {
+        	correctionQuestionCount: 3,
             annulOnThreeFath: true,
             annulOnAllTanbih: false,
             annulOnFathTanbihNinePenalty: false
@@ -27,7 +28,7 @@
 
         async init() {
             if (!this.currentOrgId) {
-                this.showToast("لم يتم ربط الحساب بمنظمة", "error");
+                this.showToast("لم يتم ضبط بيانات المسابقة", "error");
                 this.loading = false;
                 return;
             }
@@ -60,6 +61,7 @@
                 const { ref, get } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
                 const snapshot = await get(ref(db, window.orgDataPath("correctionSettings")));
                 this.correctionSettings = {
+                	correctionQuestionCount: 3,
                     annulOnThreeFath: true,
                     annulOnAllTanbih: false,
                     annulOnFathTanbihNinePenalty: false,
@@ -71,19 +73,49 @@
         },
 
         async saveCorrectionSettings() {
+
             try {
+
                 const { db } = await window.initFirebase();
+
                 const { ref, set } = await import("https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js");
+
                 await set(ref(db, window.orgDataPath("correctionSettings")), {
+
+                    correctionQuestionCount: Number(this.correctionSettings.correctionQuestionCount) || 3,
+
                     annulOnThreeFath: !!this.correctionSettings.annulOnThreeFath,
+
                     annulOnAllTanbih: !!this.correctionSettings.annulOnAllTanbih,
+
                     annulOnFathTanbihNinePenalty: !!this.correctionSettings.annulOnFathTanbihNinePenalty,
+
                     updatedAt: Date.now()
+
                 });
+
                 this.showToast("تم حفظ الاختيار");
+
             } catch (error) {
+
                 this.showToast(error.message, "error");
+
             }
+
+        },
+
+
+
+        getFathTanbihThresholdLabel() {
+
+            const questionCount = Number(this.correctionSettings.correctionQuestionCount) || 3;
+
+            if (questionCount === 2) return "إلغاء السؤال عند بلوغ خصم خمس عشرة نقطة";
+
+            if (questionCount === 5) return "إلغاء السؤال عند بلوغ خصم سبع نقاط ونصف";
+
+            return "إلغاء السؤال عند بلوغ خصم تسع نقاط";
+
         },
 
         resetForm() {
@@ -320,8 +352,47 @@
     <p class="text-center text-gray-600 mb-6">اختر طريقة احتساب الأسئلة الملغاة، واضبط حسابات الدخول الخاصة بالحكام والمرشحين.</p>
 
     <section class="mb-8 rounded-2xl border border-blue-100 bg-gradient-to-l from-blue-50 to-white p-5 shadow-sm">
+        <div class="mb-6">
+            <h2 class="text-xl font-bold text-blue-900">صيغة المسابقة</h2>
+            <p class="mt-1 text-sm text-gray-600">اختر عدد الأسئلة المعتمد في استمارة التحكيم. </p>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label class="block rounded-xl border bg-white p-4 shadow-sm cursor-pointer hover:border-blue-300 transition" :class="Number(correctionSettings.correctionQuestionCount) === 2 ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'">
+                    <div class="flex items-start gap-3">
+                        <input type="radio" name="correctionQuestionCount" value="2" x-model.number="correctionSettings.correctionQuestionCount" @change="saveCorrectionSettings()" class="mt-1 h-5 w-5 accent-blue-600">
+                        <div>
+                            <h3 class="font-bold text-gray-900">سؤالان</h3>
+                            <p class="mt-2 text-sm text-gray-600 leading-6">صيغة مختصرة لتقييم أسرع.</p>
+                        </div>
+                    </div>
+                </label>
+
+                <label class="block rounded-xl border bg-white p-4 shadow-sm cursor-pointer hover:border-blue-300 transition" :class="Number(correctionSettings.correctionQuestionCount) === 3 ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'">
+                    <div class="flex items-start gap-3">
+                        <input type="radio" name="correctionQuestionCount" value="3" x-model.number="correctionSettings.correctionQuestionCount" @change="saveCorrectionSettings()" class="mt-1 h-5 w-5 accent-blue-600">
+                        <div>
+                            <h3 class="font-bold text-gray-900">ثلاثة أسئلة</h3>
+                            <p class="mt-2 text-sm text-gray-600 leading-6">صيغة متوازنة لمعظم المسابقات.</p>
+                        </div>
+                    </div>
+                </label>
+
+                <label class="block rounded-xl border bg-white p-4 shadow-sm cursor-pointer hover:border-blue-300 transition" :class="Number(correctionSettings.correctionQuestionCount) === 5 ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'">
+                    <div class="flex items-start gap-3">
+                        <input type="radio" name="correctionQuestionCount" value="5" x-model.number="correctionSettings.correctionQuestionCount" @change="saveCorrectionSettings()" class="mt-1 h-5 w-5 accent-blue-600">
+                        <div>
+                            <h3 class="font-bold text-gray-900">خمسة أسئلة</h3>
+                            <p class="mt-2 text-sm text-gray-600 leading-6">صيغة موسعة لتقييم أدق.</p>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
-            <h2 class="text-xl font-bold text-blue-900">إعدادات إلغاء السؤال في التصحيح</h2>
+            <div>
+                <h2 class="text-xl font-bold text-blue-900">إعدادات إلغاء السؤال في التصحيح</h2>
+                <p class="mt-1 text-sm text-gray-600">فعّل القواعد التي تريد اعتمادها. يتم حفظ أي تغيير مباشرة.</p>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -349,8 +420,8 @@
                 <div class="flex items-start gap-3">
                     <input type="checkbox" x-model="correctionSettings.annulOnFathTanbihNinePenalty" @change="saveCorrectionSettings()" class="mt-1 h-5 w-5 accent-blue-600">
                     <div>
-                        <h3 class="font-bold text-gray-900">إلغاء السؤال عند بلوغ خصم 9 نقاط</h3>
-                        <p class="mt-2 text-sm text-gray-600 leading-6">إذا أصبح خصم الفتح والتنبيه كبيراً في سؤال واحد، يتم اعتبار السؤال ملغى.</p>
+                        <h3 class="font-bold text-gray-900" x-text="getFathTanbihThresholdLabel()"></h3>
+                        <p class="mt-2 text-sm text-gray-600 leading-6">إذا بلغ خصم الفتح والتنبيه الحد المعتمد في صيغة المسابقة، يتم اعتبار السؤال ملغى.</p>
                     </div>
                 </div>
             </label>
