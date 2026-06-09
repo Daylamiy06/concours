@@ -124,9 +124,9 @@
                 .then((userCredential) => {
                     const uid = userCredential.user.uid;
                     get(child(ref(db), `utilisateurs/${uid}`)).then(snapshot => {
-                        scope.loading = false;
 
                         if (!snapshot.exists()) {
+                        	scope.loading = false;
                             scope.errorMessage = "لم يتم العثور على معلومات المستخدم!";
                             return;
                         }
@@ -138,6 +138,7 @@
                         
                         if (user.active === false) {
                             auth.signOut();
+                            scope.loading = false;
                             scope.errorMessage = "تم تعطيل هذا الحساب!";
                             return;
                         }
@@ -156,7 +157,7 @@
                             case "المسؤول": window.location.href = "admin.html"; break;
                             case "المحكم": redirectToCorrectionPage(orgId); break;
                             case "المرشح": window.location.href = "candidats.html"; break;
-                            default: scope.errorMessage = "دور غير معروف!";
+                            default: scope.loading = false; scope.errorMessage = "دور غير معروف!";
                         }
                     }).catch((error) => {
                         scope.loading = false;
