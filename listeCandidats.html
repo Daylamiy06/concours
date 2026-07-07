@@ -31,9 +31,8 @@
         .operations-column { width: 130px; }
         .id-column { width: 50px; }
         .name-column { width: 250px; }
-        .matricule-column { width: 150px; }
         .country-column { width: 200px; }
-        .telephone-column { width: 150px; }
+        .birth-column { width: 140px; }
         .parts-column { width: 70px; }
         input:focus {
             border-color: #3b82f6 !important;
@@ -58,7 +57,7 @@
             snackbarVisible: false,
             lastDeletedCandidat: null,
             loading: true,
-            formData: { id: "", nom: "", matricule: "", pays: "", telephone: "", ajza: "" },
+            formData: { id: "", nom: "", pays: "", naissance: "", ajza: "" },
             importErrorMessage: "",
             errorMessage: "",
             confirmDelete: {
@@ -67,7 +66,7 @@
                 confirm: () => {}
             },
             resetForm() { 
-                this.formData = { id: "", nom: "", matricule: "", pays: "", telephone: "", ajza: "" }; 
+                this.formData = { id: "", nom: "", pays: "", naissance: "", ajza: "" }; 
                 this.errorMessage = ""; 
             },
             get filteredCandidats() {
@@ -114,26 +113,19 @@
             saveCandidat() {
                 if (!this.actions) return;
 
-    const nom = this.formData.nom.trim();
-    const matricule = this.formData.matricule.trim();
+                const nom = this.formData.nom.trim();
                 const pays = this.formData.pays.trim();
-                const telephone = this.formData.telephone.trim();
+                const naissance = this.formData.naissance;
                 const ajza = Number(this.formData.ajza);
 
-                if (!matricule || !nom || !pays || isNaN(ajza) || ajza <= 0) {
+                if (!nom || !pays || !naissance || isNaN(ajza) || ajza <= 0) {
                     this.errorMessage = "الرجاء ملء جميع الحقول بشكل صحيح";
                     return;
                 }
-                
-                const exists = this.candidats.some(c => c.matricule === matricule && c.id !== this.formData.id);
-    if (exists) {
-        this.errorMessage = "رقم الجامعي موجود بالفعل";
-        return;
-    }
 
                 const candidat = {
                     id: this.formData.id || this.nextId++,
-                    nom, matricule, pays, telephone, ajza
+                    nom, pays, naissance, ajza
                 };
                 
                 this.actions.ajouterCandidat(candidat)
@@ -150,6 +142,7 @@
                                     ...snapshot.val(),
                                     nom: candidat.nom,
                                     pays: candidat.pays,
+                                    naissance: candidat.naissance,
                                     ajza: candidat.ajza
                                 });
                             }
@@ -188,8 +181,9 @@
                         const headers = raw[0] || [];
 
                         // Vérification des en-têtes attendues
-                        if (!(headers.includes("الإسم") || headers.includes("الاسم")) || !headers.includes("رقم الجامعي") || !headers.includes("الدولة") || !headers.includes("رقم الهاتف") || !headers.includes("الأجزاء")) {
-                            this.importErrorMessage = "الملف يجب أن يحتوي على الأعمدة: الاسم، رقم الجامعي، الدولة، رقم الهاتف، الأجزاء";
+                        if (!(headers.includes("الإسم") || headers.includes("الاسم")) || !(headers.includes("الدولة/المدينة") || headers.includes("الدولة")) || !headers.includes("الميلاد") || !headers.includes("الأجزاء")) {
+
+                            this.importErrorMessage = "الملف يجب أن يحتوي على الأعمدة: الاسم، الدولة/المدينة، الميلاد، الأجزاء";
                             this.excelPreview = []
                             return;
                         }
@@ -200,40 +194,11 @@
                         this.excelPreview = rows.map((r, index) => ({
                             id: this.nextId + index,
                             nom: r["الاسم"] || r["الإسم"] || "",
-                            matricule: r["رقم الجامعي"] || "",
-                            pays: r["الدولة"] || "",
-                            telephone: r["رقم الهاتف"] || "",
+                            pays: r["الدولة/المدينة"] || r["الدولة"] || "",
+
+                            naissance: r["الميلاد"] || "",
                             ajza: Number(r["الأجزاء"]) || 0
-                        })).filter(c => c.nom && c.pays && c.ajza > 0);
-                        
-                        // Doublons dans le fichier Excel
-      const seen = new Set();
-      const duplicateInFile = this.excelPreview.some(c => {
-          if (seen.has(c.matricule)) return true;
-          seen.add(c.matricule);
-          return false;
-      });
-
-      if (duplicateInFile) {
-          this.importErrorMessage = "الملف يحتوي على أرقام جامعية مكررة";
-          this.excelPreview = [];
-          return;
-      }
-      
-      // Doublons avec la base existante
-      const existingMatricules = new Set(
-          this.candidats.map(c => String(c.matricule).trim())
-      );
-
-      const duplicateWithDB = this.excelPreview.some(c =>
-          existingMatricules.has(c.matricule)
-      );
-
-      if (duplicateWithDB) {
-          this.importErrorMessage = "بعض أرقام الجامعي موجودة مسبقاً في النظام";
-          this.excelPreview = [];
-          return;
-      }
+                        })).filter(c => c.nom && c.pays && c.naissance && c.ajza > 0);
 
                         if (this.excelPreview.length === 0) {
                             this.importErrorMessage = "الملف لا يحتوي على بيانات صالحة";
@@ -343,13 +308,13 @@
                         <th class="border border-gray-400 p-2 parts-column cursor-pointer" @click="toggleSort('ajza')">الأجزاء 
                             <span x-show="sortKey === 'ajza'" x-text="sortAsc ? '↑' : '↓'"></span>
                         </th>
-                        <th class="border border-gray-400 p-2 telephone-column">رقم الهاتف</th>
-                        <th class="border border-gray-400 p-2 country-column cursor-pointer" @click="toggleSort('pays')">الدولة 
+                        <th class="border border-gray-400 p-2 birth-column cursor-pointer" @click="toggleSort('naissance')">الميلاد
+                            <span x-show="sortKey === 'naissance'" x-text="sortAsc ? '↑' : '↓'"></span>
+                        </th>
+
+                        <th class="border border-gray-400 p-2 country-column cursor-pointer" @click="toggleSort('pays')">الدولة/المدينة
                             <span x-show="sortKey === 'pays'" x-text="sortAsc ? '↑' : '↓'"></span>
                         </th>
-                        <th class="border border-gray-400 p-2 matricule-column cursor-pointer" @click="toggleSort('matricule')">رقم الجامعي
-    						<span x-show="sortKey === 'matricule'" x-text="sortAsc ? '↑' : '↓'"></span>
-						</th>
                         <th class="border border-gray-400 p-2 name-column cursor-pointer" @click="toggleSort('nom')">الإسم 
                             <span x-show="sortKey === 'nom'" x-text="sortAsc ? '↑' : '↓'"></span>
                         </th>
@@ -360,20 +325,19 @@
                 </thead>
                 <tbody>
                     <tr x-show="sortedCandidats.length === 0">
-                        <td class="p-4 text-center text-gray-500" :colspan="7">.لا توجد بيانات لعرضها حالياً</td>
+                        <td class="p-4 text-center text-gray-500" :colspan="6">.لا توجد بيانات لعرضها حالياً</td>
                     </tr>
                     <template x-for="candidat in sortedCandidats" :key="candidat.id">
                         <tr>
                             <td class="border border-gray-400 p-2">
                                 <div class="flex justify-center gap-2">
-                                    <button @click="formData = { id: candidat.id, nom: candidat.nom, matricule: candidat.matricule, pays: candidat.pays, telephone: candidat.telephone, ajza: candidat.ajza }; showModal = true" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">تعديل</button>
+                                    <button @click="formData = { id: candidat.id, nom: candidat.nom, pays: candidat.pays, naissance: candidat.naissance || '', ajza: candidat.ajza }; showModal = true" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded">تعديل</button>
                                     <button @click="deleteCandidat(candidat.id)" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">حذف</button>
                                 </div>
                             </td>
                             <td class="border border-gray-400 p-2" x-text="candidat.ajza"></td>
-                            <td class="border border-gray-400 p-2" x-text="candidat.telephone"></td>
+                            <td class="border border-gray-400 p-2" x-text="candidat.naissance || '-'"></td>
                             <td class="border border-gray-400 p-2" x-text="candidat.pays"></td>
-                            <td class="border border-gray-400 p-2" x-text="candidat.matricule"></td>
                             <td class="border border-gray-400 p-2" x-text="candidat.nom"></td>
                             <td class="border border-gray-400 p-2" x-text="candidat.id"></td>
                         </tr>
@@ -402,26 +366,19 @@
                            class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right" placeholder="أدخل الإسم">
                 	</div>
 
-					<div class="mb-4">
-    					<label class="block text-sm font-medium text-gray-700 mb-1">رقم الجامعي:</label>
-    					<input type="text" id="matricule" x-model="formData.matricule"
-   						:class="{'border-red-500': !formData.matricule && errorMessage}"
-           				class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right" placeholder="أدخل رقم الجامعي">
-					</div>
-
                 	<div class="mb-4">
-                    	<label for="country" class="block text-sm font-medium text-gray-700 mb-1">الدولة:</label>
+                    	<label for="country" class="block text-sm font-medium text-gray-700 mb-1">الدولة/المدينة:</label>
                     	<input type="text" id="country" x-model="formData.pays"
                            :class="{'border-red-500': !formData.pays && errorMessage}" 
-                           class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right" placeholder="أدخل الدولة">
+                           class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right" placeholder="أدخل الدولة أو المدينة">
                 	</div>
                 
                 	<div class="mb-4">
-    					<label class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف:</label>
-    					<input type="text" id="telephone" x-model="formData.telephone"
-   						:class="{'border-red-500': !formData.telephone && errorMessage}"
-           				class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right" placeholder="أدخل رقم الهاتف">
-					</div>
+                        <label for="birth" class="block text-sm font-medium text-gray-700 mb-1">الميلاد:</label>
+                        <input type="date" id="birth" x-model="formData.naissance"
+                           :class="{'border-red-500': !formData.naissance && errorMessage}"
+                           class="w-full px-4 py-2 border-2 border-gray-500 rounded-md bg-white text-right">
+                    </div>
 
                 	<div class="mb-4">
                     	<label for="parts" class="block text-sm font-medium text-gray-700 mb-1">الأجزاء:</label>
@@ -459,9 +416,9 @@
                             <thead>
                                 <tr class="bg-gray-100">
                                     <th class="border px-2 py-1 text-center">الأجزاء</th>
-                                    <th class="border px-2 py-1 text-center">رقم الهاتف</th>
-                                    <th class="border px-2 py-1 text-center">الدولة</th>
-                                    <th class="border px-2 py-1 text-center">رقم الجامعي</th>
+                                    <th class="border px-2 py-1 text-center">الميلاد</th>
+
+                                    <th class="border px-2 py-1 text-center">الدولة/المدينة</th>
                                     <th class="border px-2 py-1 text-center">الإسم</th>
                                     <th class="border px-2 py-1 text-center">Id</th>
                                 </tr>
@@ -470,9 +427,8 @@
                                 <template x-for="row in excelPreview.slice(0, 10)" :key="row.id">
                                     <tr>
                                         <td class="border px-2 py-1 text-center" x-text="row.ajza"></td>
-                                        <td class="border px-2 py-1 text-center" x-text="row.telephone"></td>
+                                        <td class="border px-2 py-1 text-center" x-text="row.naissance"></td>
                                         <td class="border px-2 py-1 text-center" x-text="row.pays"></td>
-                                        <td class="border px-2 py-1 text-center" x-text="row.matricule"></td>
                                         <td class="border px-2 py-1 text-center" x-text="row.nom"></td>
                                         <td class="border px-2 py-1 text-center" x-text="row.id"></td>
                                     </tr>
