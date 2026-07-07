@@ -10,7 +10,6 @@
         .fixed-width { width: 990px; margin: auto; }
         .name-column { width: 200px; }
         .country-column { width: 150px; }
-        .matricule-column { width: 150px; }
         .rank-column { width: 60px; }
         .score-column { width: 90px; }        
         #searchInput { flex-grow: 1; }
@@ -136,15 +135,14 @@
                                 <th class="p-2 rank-column">الترتيب</th>
                                 <th class="p-2 name-column">الإسم</th>
                                 <th class="p-2 score-column">التقدير</th>
-                                <th class="p-2 country-column">الدولة</th>
-                                <th class="p-2 matricule-column">رقم الجامعي</th>
+                                <th class="p-2 country-column">الدولة/المدينة</th>
                                 <th class="p-2 hide">عدد المحكمين</th>
                                 <th class="p-2 hide">مجموع الدرجات</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr x-show="sortedNotes.length === 0">
-                                <td class="p-4 text-center text-gray-500" :colspan="selectedAjza ? 9 : 10">
+                                <td class="p-4 text-center text-gray-500" :colspan="selectedAjza ? 6 : 7">
                                     لا توجد بيانات لعرضها حالياً.
                                 </td>
                             </tr>
@@ -155,7 +153,6 @@
                                     <td class="p-2" x-text="candidat.nom"></td>
                                     <td class="p-2" x-text="`${candidat.notetotale}/100`"></td>
                                     <td class="p-2" x-text="candidat.pays"></td>
-                                    <td class="p-2" x-text="candidat.matricule"></td>
                                     <td class="p-2 hide" x-text="candidat.juryCount || 0"></td>
                                     <td class="p-2 hide" x-text="`${candidat.sumScore || 0}`"></td>
                                 </tr>
