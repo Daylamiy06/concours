@@ -1,8 +1,8 @@
 <div x-data="mushaf()" x-init="init()" class="w-full max-w-5xl mx-auto p-4 bg-gray-100 rounded shadow" dir="rtl" translate="no">
-  <div class="flex justify-center gap-4 mb-4">
-    <button @click="setQuestion(1)" :class="activeQuestion===1?'font-bold border-b-4 border-blue-500 bg-sky-100':''" class="text-blue-700 p-2 rounded">السؤال الأول</button>
-    <button @click="setQuestion(2)" :class="activeQuestion===2?'font-bold border-b-4 border-blue-500 bg-sky-100':''" class="text-blue-700 p-2 rounded">السؤال الثاني</button>
-    <button @click="setQuestion(3)" :class="activeQuestion===3?'font-bold border-b-4 border-blue-500 bg-sky-100':''" class="text-blue-700 p-2 rounded">السؤال الثالث</button>
+  <div class="flex justify-center gap-4 mb-4 flex-wrap">
+    <template x-for="questionNumber in questionNumbers" :key="questionNumber">
+      <button @click="setQuestion(questionNumber)" :class="activeQuestion===questionNumber?'font-bold border-b-4 border-blue-500 bg-sky-100':''" class="text-blue-700 p-2 rounded" x-text="questionLabels[questionNumber - 1]"></button>
+    </template>
   </div>
 
   <div class="text-right text-green-700 font-bold text-lg mb-2 min-h-[28px] w-full">
@@ -77,10 +77,17 @@ function mushaf(){
     loadedFonts: new Set(),
     surahNames:{},
     activeQuestion: 1,
+    questionCount: 3,
+    questionLabels: ['السؤال الأول', 'السؤال الثاني', 'السؤال الثالث', 'السؤال الرابع', 'السؤال الخامس'],
+    get questionNumbers() {
+      return Array.from({ length: this.questionCount }, (_, i) => i + 1);
+    },
     ranges: {
       q1: { startSurah:0, startAyah:0, endSurah:0, endAyah:0 },
       q2: { startSurah:0, startAyah:0, endSurah:0, endAyah:0 },
-      q3: { startSurah:0, startAyah:0, endSurah:0, endAyah:0 }
+      q3: { startSurah:0, startAyah:0, endSurah:0, endAyah:0 },
+      q4: { startSurah:0, startAyah:0, endSurah:0, endAyah:0 },
+      q5: { startSurah:0, startAyah:0, endSurah:0, endAyah:0 }
     },
 
     async init(){
@@ -111,13 +118,14 @@ function mushaf(){
 
     applyInjectedData(detail = null) {
       const ranges = detail?.ranges || window.injectedRanges;
+      const injectedQuestionCount = Number(detail?.questionCount || window.injectedQuestionCount);
+      if ([2, 3, 5].includes(injectedQuestionCount)) this.questionCount = injectedQuestionCount;
+      if (this.activeQuestion > this.questionCount) this.activeQuestion = 1;
       if (!ranges) return;
 
-      this.ranges = {
-        q1: { ...this.ranges.q1, ...(ranges.q1 || {}) },
-        q2: { ...this.ranges.q2, ...(ranges.q2 || {}) },
-        q3: { ...this.ranges.q3, ...(ranges.q3 || {}) }
-      };
+      for (let i = 1; i <= 5; i++) {
+        this.ranges[`q${i}`] = { ...this.ranges[`q${i}`], ...(ranges[`q${i}`] || {}) };
+      }
 
       this.loadActiveRange();
     },
