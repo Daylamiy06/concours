@@ -116,11 +116,19 @@
     ajza: [],
     ajzaSel: '',
     errorMessage: '',
+    editLoadedFor: null,
+    questionCount: 3,
+    questionLabels: ['السؤال الأول', 'السؤال الثاني', 'السؤال الثالث', 'السؤال الرابع', 'السؤال الخامس'],
     questions: [
       {label:'السؤال الأول', sourateFromId:'', versetFrom:'', pageFrom:'', maxVersetsFrom:0, sourateToId:'', versetTo:'', pageTo:'', maxVersetsTo:0},
       {label:'السؤال الثاني', sourateFromId:'', versetFrom:'', pageFrom:'', maxVersetsFrom:0, sourateToId:'', versetTo:'', pageTo:'', maxVersetsTo:0},
-      {label:'السؤال الثالث', sourateFromId:'', versetFrom:'', pageFrom:'', maxVersetsFrom:0, sourateToId:'', versetTo:'', pageTo:'', maxVersetsTo:0}
+      {label:'السؤال الثالث', sourateFromId:'', versetFrom:'', pageFrom:'', maxVersetsFrom:0, sourateToId:'', versetTo:'', pageTo:'', maxVersetsTo:0},
+      {label:'السؤال الرابع', sourateFromId:'', versetFrom:'', pageFrom:'', maxVersetsFrom:0, sourateToId:'', versetTo:'', pageTo:'', maxVersetsTo:0},
+      {label:'السؤال الخامس', sourateFromId:'', versetFrom:'', pageFrom:'', maxVersetsFrom:0, sourateToId:'', versetTo:'', pageTo:'', maxVersetsTo:0}
     ],
+    get activeQuestions() {
+      return this.questions.slice(0, this.questionCount);
+    },
     resetForm() {
       this.ajzaSel = '';
       this.errorMessage = '';
@@ -138,6 +146,10 @@
     async init() {
       const {db} = await window.initFirebase();
       const {ref, get} = await import('https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js');
+
+  	const settingsSnap = await get(ref(db, window.orgDataPath('correctionSettings/correctionQuestionCount')));
+      const configuredQuestionCount = Number(settingsSnap.val()) || 3;
+      this.questionCount = [2, 3, 5].includes(configuredQuestionCount) ? configuredQuestionCount : 3;
 
       // Charger sourates
       const snap = await get(ref(db, 'sourates'));
@@ -197,14 +209,14 @@
         return;
       }
 
-      if (this.questions.some(q => !q.sourateFromId || !q.versetFrom || !q.sourateToId || !q.versetTo)) {
+      if (this.activeQuestions.some(q => !q.sourateFromId || !q.versetFrom || !q.sourateToId || !q.versetTo)) {
         this.errorMessage = 'يرجى ملء جميع الحقول.';
         return;
       }
 
       const dataToSave = {ajza: +this.ajzaSel};
 
-      this.questions.forEach((q, i) => {
+      this.activeQuestions.forEach((q, i) => {
         const idx = i + 1;
         const sourateFrom = Number(q.sourateFromId);
         const sourateTo = Number(q.sourateToId);
@@ -229,7 +241,7 @@
         const existantKeys = new Set();
         const localKeys = new Set();
 
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= this.questionCount; i++) {
           for (const part of ['From', 'To']) {
             const s = dataToSave[`sourate${part}Q${i}`];
             const v = +dataToSave[`verset${part}Q${i}`];
@@ -248,7 +260,7 @@
         for (const id in allNumeros) {
           if (numeroSelectionne && id === String(numeroSelectionne.id)) continue;
           const enreg = allNumeros[id];
-          for (let i = 1; i <= 3; i++) {
+          for (let i = 1; i <= this.questionCount; i++) {
             const fromS = enreg[`sourateFromQ${i}`];
             const fromV = +enreg[`versetFromQ${i}`];
             const toS = enreg[`sourateToQ${i}`];
@@ -258,7 +270,7 @@
           }
         }
 
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= this.questionCount; i++) {
           for (const part of ['From', 'To']) {
             const s = dataToSave[`sourate${part}Q${i}`];
             const v = +dataToSave[`verset${part}Q${i}`];
@@ -326,35 +338,42 @@
   x-init="init()"
   x-effect="
   if (showModal) {
-    if (numeroSelectionne) {
-      errorMessage = '';
-      ajzaSel = numeroSelectionne.ajza;
-      questions.forEach((q, i) => {
-        const idx = i + 1;
-        const fromS = numeroSelectionne[`sourateFromQ${idx}`];
-        const fromV = numeroSelectionne[`versetFromQ${idx}`];
-        const toS = numeroSelectionne[`sourateToQ${idx}`];
-        const toV = numeroSelectionne[`versetToQ${idx}`];
+    const selectedKey = numeroSelectionne ? String(numeroSelectionne.id) : '__new__';
+    if (editLoadedFor !== selectedKey) {
+      editLoadedFor = selectedKey;
+      if (numeroSelectionne) {
+        errorMessage = '';
+        ajzaSel = numeroSelectionne.ajza;
+        questions.forEach((q, i) => {
+          const idx = i + 1;
+          const fromS = numeroSelectionne[`sourateFromQ${idx}`];
+          const fromV = numeroSelectionne[`versetFromQ${idx}`];
+          const toS = numeroSelectionne[`sourateToQ${idx}`];
+          const toV = numeroSelectionne[`versetToQ${idx}`];
 
-        q.sourateFromId = fromS ? String(fromS) : '';
-        q.sourateToId = toS ? String(toS) : '';
+          q.sourateFromId = fromS ? String(fromS) : '';
+          q.sourateToId = toS ? String(toS) : '';
 
-        const fromObj = sourates.find(s => String(s.id) === String(q.sourateFromId));
-        const toObj = sourates.find(s => String(s.id) === String(q.sourateToId));
+          const fromObj = sourates.find(s => String(s.id) === String(q.sourateFromId));
+          const toObj = sourates.find(s => String(s.id) === String(q.sourateToId));
 
-        q.maxVersetsFrom = fromObj?.versets || 0;
-        q.maxVersetsTo = toObj?.versets || 0;
+          q.maxVersetsFrom = fromObj?.versets || 0;
+          q.maxVersetsTo = toObj?.versets || 0;
 
-        Alpine.nextTick(() => {
-          q.versetFrom = fromV || '';
-          q.versetTo = toV || '';
-          majPage(q, 'from');
-          majPage(q, 'to');
+          Alpine.nextTick(() => {
+            q.versetFrom = fromV || '';
+            q.versetTo = toV || '';
+            majPage(q, 'from');
+            majPage(q, 'to');
+          });
         });
-      });
-    } else {
-      resetForm();
+      } else {
+        resetForm();
+        editLoadedFor = selectedKey;
+      }
     }
+  } else {
+    editLoadedFor = null;
   }">
   <div class="shadow-md w-full z-50 pl-4 pr-6">
  <h2 class="text-2xl font-semibold text-center mb-4">إضافة رقم جديد</h2>
@@ -375,7 +394,7 @@
   </div>
     
     <div class="flex-1 overflow-y-auto pr-2 space-y-6">
-      <template x-for="(q, i) in questions" :key="i">
+      <template x-for="(q, i) in activeQuestions" :key="i">
         <div class="border border-gray-300 p-4 rounded bg-gray-50">
           <h2 class="text-lg font-bold text-blue-600 mb-4" x-text="q.label"></h2>
           <div class="grid grid-cols-2 gap-2 items-end mb-3">
