@@ -329,7 +329,7 @@
     </div>
         
     <footer class="bg-white border-t mt-10 py-4 text-center text-sm text-gray-600">
-        <p>© 2025 مسابقة القرآن - جميع الحقوق محفوظة</p>
+        <p>© 2025 مسابقة الريان - جميع الحقوق محفوظة</p>
         <p class="mt-1">تم التطوير بواسطة Day06 - 
             <a href="https://wa.me/261327189552" class="text-blue-500 hover:underline" target="_blank">واتساب</a>
         </p>
@@ -419,51 +419,22 @@
 
 		window.injectNumeroDataForCandidate = function (candidatId) {
 			const numeroEntry = Object.values(numerosData).find(n => String(n.candidatId) === String(candidatId));
+			const questionCount = Number(Alpine.store('correction')?.correctionSettings?.correctionQuestionCount) || 3;
+			window.injectedQuestionCount = [2, 3, 5].includes(questionCount) ? questionCount : 3;
+			window.injectedPages = {};
+			window.injectedSurahs = {};
+			window.injectedVersets = {};
+			window.injectedRanges = {};
 
-			if (numeroEntry) {
-				window.injectedPages = {
-					pageQ1: Number(numeroEntry.pageFromQ1 || 1),
-					pageQ2: Number(numeroEntry.pageFromQ2 || 1),
-					pageQ3: Number(numeroEntry.pageFromQ3 || 1)
-				};
-				window.injectedSurahs = {
-					pageQ1: numeroEntry.sourateFromQ1 || "",
-					pageQ2: numeroEntry.sourateFromQ2 || "",
-					pageQ3: numeroEntry.sourateFromQ3 || ""
-				};
-				window.injectedVersets = {
-					pageQ1: numeroEntry.versetFromQ1 || "",
-					pageQ2: numeroEntry.versetFromQ2 || "",
-					pageQ3: numeroEntry.versetFromQ3 || ""
-				};
-				window.injectedRanges = {
-					q1: {
-						startSurah: Number(numeroEntry.sourateFromQ1 || 0),
-						startAyah: Number(numeroEntry.versetFromQ1 || 0),
-						endSurah: Number(numeroEntry.sourateToQ1 || 0),
-						endAyah: Number(numeroEntry.versetToQ1 || 0)
-					},
-					q2: {
-						startSurah: Number(numeroEntry.sourateFromQ2 || 0),
-						startAyah: Number(numeroEntry.versetFromQ2 || 0),
-						endSurah: Number(numeroEntry.sourateToQ2 || 0),
-						endAyah: Number(numeroEntry.versetToQ2 || 0)
-					},
-					q3: {
-						startSurah: Number(numeroEntry.sourateFromQ3 || 0),
-						startAyah: Number(numeroEntry.versetFromQ3 || 0),
-						endSurah: Number(numeroEntry.sourateToQ3 || 0),
-						endAyah: Number(numeroEntry.versetToQ3 || 0)
-					}
-				};
-			} else {
-				window.injectedPages = { pageQ1: 1, pageQ2: 1, pageQ3: 1 };
-				window.injectedSurahs = { pageQ1: "", pageQ2: "", pageQ3: "" };
-				window.injectedVersets = { pageQ1: "", pageQ2: "", pageQ3: "" };
-				window.injectedRanges = {
-					q1: { startSurah: 0, startAyah: 0, endSurah: 0, endAyah: 0 },
-					q2: { startSurah: 0, startAyah: 0, endSurah: 0, endAyah: 0 },
-					q3: { startSurah: 0, startAyah: 0, endSurah: 0, endAyah: 0 }
+			for (let i = 1; i <= 5; i++) {
+				window.injectedPages[`pageQ${i}`] = Number(numeroEntry?.[`pageFromQ${i}`] || 1);
+				window.injectedSurahs[`pageQ${i}`] = numeroEntry?.[`sourateFromQ${i}`] || "";
+				window.injectedVersets[`pageQ${i}`] = numeroEntry?.[`versetFromQ${i}`] || "";
+				window.injectedRanges[`q${i}`] = {
+					startSurah: Number(numeroEntry?.[`sourateFromQ${i}`] || 0),
+					startAyah: Number(numeroEntry?.[`versetFromQ${i}`] || 0),
+					endSurah: Number(numeroEntry?.[`sourateToQ${i}`] || 0),
+					endAyah: Number(numeroEntry?.[`versetToQ${i}`] || 0)
 				};
 			}
 
@@ -472,7 +443,8 @@
 					pages: window.injectedPages,
 					surahs: window.injectedSurahs,
 					versets: window.injectedVersets,
-					ranges: window.injectedRanges
+					ranges: window.injectedRanges,
+					questionCount: window.injectedQuestionCount
 				}
 			}));
 		}
@@ -572,7 +544,7 @@
                 id: Number(selectedId),
                 nom: data.nom || data.name || "",
                 pays: data.pays || "",
-				naissance: data.naissance || "",
+                naissance: data.naissance || "",
                 ajza: data.ajza || "",
                 juryCount,
 				status: "completed",
