@@ -340,9 +340,12 @@
 
                 await remove(ref(db, window.orgDataPath(node)));
 
-                if (node === "candidats") {
-                    await remove(ref(db, window.orgDataPath("notes")));
+                if (node === "notes" || node === "candidats") {
                     await remove(ref(db, window.orgDataPath("corrections")));
+
+                    if (node === "candidats") {
+                        await remove(ref(db, window.orgDataPath("notes")));
+                    }
 
                     const numerosRef = ref(db, window.orgDataPath("numeros"));
                     const snapshot = await get(numerosRef);
