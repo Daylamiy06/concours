@@ -393,8 +393,7 @@ function platformAdmin() {
 
                 if (adminUid) {updates.adminUid = adminUid;}
                 const promises = [
-                    db.ref('organisations/' + this.selectedOrgId).update(updates),
-                    db.ref(`orgData/${this.selectedOrgId}/metadata`).remove()
+                    db.ref('organisations/' + this.selectedOrgId).update(updates)
                 ];
 
                 if (adminUid && !shouldReplaceAdminAccount) {
@@ -447,8 +446,7 @@ function platformAdmin() {
                 const adminUid = org.adminUid || null;
                 const updates = {active, updatedAt: Date.now()};
                 const promises = [
-                    db.ref('organisations/' + org.id).update(updates),
-                    db.ref(`orgData/${org.id}/metadata`).remove()
+                    db.ref('organisations/' + org.id).update(updates)
                 ];
 
                 if (adminUid) {promises.push(db.ref('utilisateurs/' + adminUid).update({active, updatedAt: Date.now()}));}
