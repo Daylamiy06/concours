@@ -323,7 +323,7 @@
     </div>
         
     <footer class="bg-white border-t mt-10 py-4 text-center text-sm text-gray-600">
-        <p>© 2025 مسابقة الريان - جميع الحقوق محفوظة</p>
+        <p>© <span id="year"></span> مسابقة القرآن - جميع الحقوق محفوظة</p>
         <p class="mt-1">تم التطوير بواسطة Day06 - 
             <a href="https://wa.me/261327189552" class="text-blue-500 hover:underline" target="_blank">واتساب</a>
         </p>
@@ -555,6 +555,8 @@
             await chargerCandidats();
             store.loading = false;
         };
+
+		document.getElementById("year").textContent = new Date().getFullYear();
     </script>
     
     <script>
