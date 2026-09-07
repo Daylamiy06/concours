@@ -196,7 +196,7 @@
                             nom: r["الاسم"] || r["الإسم"] || "",
                             pays: r["الدولة/المدينة"] || r["الدولة"] || "",
 
-                            naissance: r["رقم الجامعي"] || "",
+                            numeroUniversitaire: r["رقم الجامعي"] || "",
                             ajza: Number(r["الأجزاء"]) || 0
                         })).filter(c => c.nom && c.pays && c.numeroUniversitaire && c.ajza > 0);
 
