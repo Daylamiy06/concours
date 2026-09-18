@@ -51,8 +51,8 @@
             Alpine.store('correction', {
                 selectedCandidate: "",
                 activeTab: 'correction',
-                scores: [25, 25, 25],
-                totalScore: 75,
+                scores: [30, 30, 30],
+                totalScore: 90,
                 loading: false,
                 orgName: "",
                 annuleQuestions: [false, false, false],
@@ -77,9 +77,9 @@
                     return {
                         fathErrors,
                         tanbihErrors,
-                        fathPenalty: fathErrors * 2.5,
-                        tanbihPenalty: tanbihErrors * 1.25,
-                        jaliPenalty: jaliErrors * 0.75,
+                        fathPenalty: fathErrors * 3,
+                        tanbihPenalty: tanbihErrors * 1.5,
+                        jaliPenalty: jaliErrors * 1,
                         khafiPenalty: khafiErrors * 0.5
                     };
                 },
@@ -90,11 +90,11 @@
                     return (
                         (this.correctionSettings.annulOnThreeFath && penalty.fathErrors === 3) ||
                         (this.correctionSettings.annulOnAllTanbih && penalty.tanbihErrors === 6) ||
-                        (this.correctionSettings.annulOnFathTanbihNinePenalty && fathTanbihPenalty >= 7.5)
+                        (this.correctionSettings.annulOnFathTanbihNinePenalty && fathTanbihPenalty >= 9)
                     );
                 },
                 calculateScores() {
-                    let baseTotal = 75;
+                    let baseTotal = 90;
                     let soundTotal = 0;
                     for (let i = 0; i < 3; i++) {
                         const penalty = this.getQuestionPenalty(i);
@@ -103,13 +103,13 @@
 
                         if (isAnnule) {
                             this.scores[i] = 0;
-                            baseTotal -= 25;
+                            baseTotal -= 30;
                             continue;
                         }
 
                         const questionPenalty = penalty.fathPenalty + penalty.tanbihPenalty + penalty.jaliPenalty + penalty.khafiPenalty;
 
-                        this.scores[i] = 25 - questionPenalty;
+                        this.scores[i] = 30 - questionPenalty;
                         baseTotal -= questionPenalty;
                     }
                     soundTotal = this.soundScore === "" ? 0 : parseFloat(this.soundScore);
@@ -131,8 +131,8 @@
                 resetFields() {
                     this.selectedCandidate = "";
                     document.getElementById("candidatSelect").selectedIndex = 0;
-                    this.scores = [25, 25, 25];
-                    this.totalScore = 75;
+                    this.scores = [30, 30, 30];
+                    this.totalScore = 90;
                     this.soundScore = "";
                     this.annuleQuestions = [false, false, false];
                     this.errors = [
@@ -201,15 +201,15 @@
                 <thead>
                     <tr class="bg-white">
                         <th class="p-2 border-r-0 border-t-0 w-28"></th>
-                        <th class="border border-gray-400 p-2 w-48">السؤال الأول (25)</th>
-						<th class="border border-gray-400 p-2 w-48">السؤال الثاني (25)</th>
-						<th class="border border-gray-400 p-2 w-48">السؤال الثالث (25)</th>
+                        <th class="border border-gray-400 p-2 w-48">السؤال الأول (30)</th>
+                        <th class="border border-gray-400 p-2 w-48">السؤال الثاني (30)</th>
+                        <th class="border border-gray-400 p-2 w-48">السؤال الثالث (30)</th>
                         <th class="border border-gray-400 p-2 w-24">الدرجة</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr class="bg-white">
-                        <td class="border border-gray-400 border-t-0 p-2 font-bold w-28">فتح - 2.50</td>
+                        <td class="border border-gray-400 border-t-0 p-2 font-bold w-28">فتح - 3</td>
                         <template x-for="(_, index) in scores" :key="index">
                             <td class="border border-gray-400 p-2 w-48">
                                 <div class="flex flex-wrap justify-center gap-1">
@@ -225,7 +225,7 @@
                     </tr>
 
                     <tr class="bg-white">
-                        <td class="border border-gray-400 p-2 font-bold w-28">تنبيه - 1.25</td>
+                        <td class="border border-gray-400 p-2 font-bold w-28">تنبيه - 1.50</td>
                         <template x-for="(_, index) in scores" :key="index">
                             <td class="border border-gray-400 p-2 w-48">
                                 <div class="flex flex-wrap justify-center gap-1">
@@ -239,7 +239,7 @@
                     </tr>
 
                     <tr class="bg-white">
-                        <td class="border border-gray-400 p-2 font-bold w-28">لحن الجلي - 0.75</td>
+                        <td class="border border-gray-400 p-2 font-bold w-28">لحن الجلي - 1</td>
                         <template x-for="(_, index) in scores" :key="index">
                             <td class="border border-gray-400 p-2 w-48">
                                 <div class="flex flex-wrap justify-center gap-1">
@@ -269,16 +269,16 @@
                     <tr>
                         <td class="border border-gray-400 p-2 font-bold bg-white w-28">المجموع</td>
                         <template x-for="(score, index) in scores" :key="index">
-                            <td class="border border-gray-400 p-2 text-lg font-bold w-48" x-text="score + '/25'"></td>
+                            <td class="border border-gray-400 p-2 text-lg font-bold w-48" x-text="score + '/30'"></td>
                         </template>
                     </tr>
 
                     <tr class="bg-white">
-                        <td class="border border-gray-400 p-2 font-bold bg-white w-28">الأداء و الصوت - 25</td>
+                        <td class="border border-gray-400 p-2 font-bold w-28">الأداء و الصوت - 10</td>
                         <td colspan="3" class="border border-gray-400 p-2 w-48">
                             <select x-model="soundScore" @change="calculateScores()" class="w-full h-10 text-center" :disabled="!selectedCandidate">
                                 <option value="" selected>حدد ملاحظة</option>
-                                <template x-for="i in 51" :key="i">
+                                <template x-for="i in 21" :key="i">
                                     <option :value="(i - 1) * 0.5" x-text="(i - 1) * 0.5"></option>
                                 </template>
                             </select>
@@ -555,8 +555,8 @@
             await chargerCandidats();
             store.loading = false;
         };
-        
-        document.getElementById("year").textContent = new Date().getFullYear();
+
+		document.getElementById("year").textContent = new Date().getFullYear();
     </script>
     
     <script>
@@ -564,8 +564,8 @@
             const store = Alpine.store("correction");
             const selectedValue = event.target.value;
 
-            store.scores = [25, 25, 25];
-            store.totalScore = 75;
+            store.scores = [30, 30, 30];
+            store.totalScore = 90;
             store.soundScore = "";
             store.errors = [
                 { fath: Array(3).fill(false), tanbih: Array(6).fill(false), jali: Array(8).fill(false), khafi: Array(8).fill(false) },
