@@ -175,7 +175,7 @@
                     this.loading = true;
                     try {
                         const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: "array" });
+                        const workbook = XLSX.read(data, { type: "array", cellDates: true });
                         const sheet = workbook.Sheets[workbook.SheetNames[0]];
                         const raw = XLSX.utils.sheet_to_json(sheet, { header: 1 });
                         const headers = raw[0] || [];
@@ -190,13 +190,31 @@
                         
                         // Conversion à partir des noms d en-tête
                         const rows = XLSX.utils.sheet_to_json(sheet);
+                        
+                        const formatDate = (value) => {
+    						if (!value) return "";
+    						if (value instanceof Date && !isNaN(value)) {
+        						const year = value.getFullYear();
+        						const month = String(value.getMonth() + 1).padStart(2, "0");
+        						const day = String(value.getDate()).padStart(2, "0");
+        						return `${year}-${month}-${day}`;
+    						}
+
+    						if (typeof value === "number") {
+        						const date = XLSX.SSF.parse_date_code(value);
+        						if (date) {
+            						return `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
+        						}
+    						}
+    						return String(value);
+						};
 
                         this.excelPreview = rows.map((r, index) => ({
                             id: this.nextId + index,
                             nom: r["الاسم"] || r["الإسم"] || "",
                             pays: r["الدولة/المدينة"] || r["الدولة"] || "",
 
-                            naissance: r["الميلاد"] || "",
+                            naissance: formatDate(r["الميلاد"]),
                             ajza: Number(r["الأجزاء"]) || 0
                         })).filter(c => c.nom && c.pays && c.naissance && c.ajza > 0);
 
